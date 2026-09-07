@@ -6,6 +6,7 @@
 <title>Bibliothecary</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 <style>
   :root{
     --ink: #1F1420;
@@ -19,7 +20,29 @@
     --seal-dim: #E4007C2E;
     --jade: #9B2C82;
     --jade-dim: #9B2C8222;
+    --hairline: #ffffff22;
+    --hairline-strong: #ffffff33;
+    --hairline-hover: #ffffff66;
+    --hairline-hover-strong: #ffffff77;
   }
+  body.light{
+    --ink: #FBF3F8;
+    --ink-soft: #F3E1EE;
+    --paper: #FFFFFF;
+    --paper-dark: #F6E9F1;
+    --text-on-ink: #3A1730;
+    --text-on-paper: #33132C;
+    --text-muted: #9B6E92;
+    --seal: #C6116F;
+    --seal-dim: #C6116F22;
+    --jade: #8A2372;
+    --jade-dim: #8A237218;
+    --hairline: #33173022;
+    --hairline-strong: #33173033;
+    --hairline-hover: #33173066;
+    --hairline-hover-strong: #33173088;
+  }
+  body{transition: background .2s, color .2s;}
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -37,7 +60,7 @@
     align-items:flex-end;
     gap:16px;
     margin-bottom:22px;
-    border-bottom:1px solid #ffffff22;
+    border-bottom:1px solid var(--hairline);
     padding-bottom:18px;
   }
   h1{
@@ -56,6 +79,27 @@
   }
   .tally b{color:var(--text-on-ink);font-weight:600;}
 
+  .header-right{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .theme-toggle{
+    background:transparent;
+    border:1px solid var(--hairline-strong);
+    color:var(--text-on-ink);
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    font-size:1rem;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .theme-toggle:hover{border-color:var(--hairline-hover);}
+
   .tabs{
     display:flex;
     gap:6px;
@@ -64,7 +108,7 @@
   }
   .tab{
     background:transparent;
-    border:1px solid #ffffff33;
+    border:1px solid var(--hairline-strong);
     color:var(--text-on-ink);
     padding:7px 14px;
     border-radius:999px;
@@ -73,7 +117,7 @@
     cursor:pointer;
     transition:background .15s, border-color .15s;
   }
-  .tab:hover{border-color:#ffffff66;}
+  .tab:hover{border-color:var(--hairline-hover);}
   .tab.active{
     background:var(--jade);
     border-color:var(--jade);
@@ -89,7 +133,7 @@
     flex:1;
     text-align:left;
     background:var(--ink-soft);
-    border:1px dashed #ffffff44;
+    border:1px dashed var(--hairline-hover-strong);
     color:var(--text-muted);
     padding:13px 16px;
     border-radius:8px;
@@ -97,10 +141,10 @@
     font-size:0.9rem;
     cursor:pointer;
   }
-  .addbtn:hover{border-color:#ffffff77;color:var(--text-on-ink);}
+  .addbtn:hover{border-color:var(--hairline-hover-strong);color:var(--text-on-ink);}
   .recapbtn{
     background:transparent;
-    border:1px solid #ffffff33;
+    border:1px solid var(--hairline-strong);
     color:var(--text-on-ink);
     padding:13px 16px;
     border-radius:8px;
@@ -109,7 +153,8 @@
     cursor:pointer;
     white-space:nowrap;
   }
-  .recapbtn:hover{border-color:#ffffff66;}
+  .recapbtn:hover{border-color:var(--hairline-hover);}
+
 
   .recap{
     background:var(--paper);
@@ -342,7 +387,7 @@
     transform:translateX(-50%);
     background:var(--ink-soft);
     color:var(--text-on-ink);
-    border:1px solid #ffffff33;
+    border:1px solid var(--hairline-strong);
     padding:10px 16px;
     border-radius:8px;
     font-size:0.82rem;
@@ -352,6 +397,118 @@
   }
   .toast.show{display:block;}
   .toast.err{border-color:var(--seal); color:#ffd6ea;}
+
+  .reader-overlay{
+    position:fixed;
+    inset:0;
+    background:var(--ink);
+    z-index:100;
+    display:none;
+    flex-direction:column;
+  }
+  .reader-overlay.open{display:flex;}
+  .reader-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 16px;
+    border-bottom:1px solid var(--hairline);
+    flex-shrink:0;
+  }
+  .reader-title{
+    font-family:'Fraunces', serif;
+    font-size:1rem;
+    color:var(--text-on-ink);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    padding-right:12px;
+  }
+  .reader-close{
+    background:transparent;
+    border:1px solid var(--hairline-strong);
+    color:var(--text-on-ink);
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    cursor:pointer;
+    flex-shrink:0;
+    font-size:1rem;
+  }
+  .reader-body{
+    flex:1;
+    position:relative;
+    background:#fff;
+  }
+  #readerViewer{
+    position:absolute;
+    inset:0;
+  }
+  .reader-nav{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 16px;
+    border-top:1px solid var(--hairline);
+    flex-shrink:0;
+  }
+  .pleco-bar{
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 16px;
+    background:var(--jade-dim);
+    border-top:1px solid var(--hairline);
+    flex-shrink:0;
+  }
+  .pleco-bar.show{display:flex;}
+  .pleco-word{
+    font-family:'Fraunces', serif;
+    font-size:1rem;
+    color:var(--text-on-ink);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .pleco-link{
+    background:var(--jade);
+    color:#fff;
+    text-decoration:none;
+    padding:7px 14px;
+    border-radius:6px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.82rem;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .reader-nav button{
+    background:var(--jade);
+    color:#fff;
+    border:none;
+    padding:8px 18px;
+    border-radius:6px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.85rem;
+    cursor:pointer;
+  }
+  .reader-status{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:0.85rem;
+    padding:40px 20px;
+  }
+  .read-actions{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+  .read-btn{
+    background:var(--jade-dim);
+    color:var(--jade);
+    border:none;
+    font-size:0.72rem;
+    padding:4px 10px;
+    border-radius:999px;
+    cursor:pointer;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+
 </style>
 </head>
 <body>
@@ -359,7 +516,10 @@
 <div class="wrap">
   <header>
     <h1>Bibliothecary</h1>
-    <div class="tally" id="tally"></div>
+    <div class="header-right">
+      <button class="theme-toggle" id="themeToggle" title="Toggle light/dark" aria-label="Toggle light and dark mode">☾</button>
+      <div class="tally" id="tally"></div>
+    </div>
   </header>
 
   <div class="tabs" id="tabs"></div>
@@ -420,6 +580,26 @@
   <div id="gridWrap"></div>
   <div class="toast" id="toast"></div>
 </div>
+
+<div class="reader-overlay" id="readerOverlay">
+  <div class="reader-bar">
+    <div class="reader-title" id="readerTitle"></div>
+    <button class="reader-close" id="readerClose" aria-label="Close reader">✕</button>
+  </div>
+  <div class="reader-body">
+    <div id="readerViewer"></div>
+    <div class="reader-status" id="readerStatus" style="display:none;"></div>
+  </div>
+  <div class="pleco-bar" id="plecoBar">
+    <div class="pleco-word" id="plecoWord"></div>
+    <a class="pleco-link" id="plecoLink" href="#">Look up in Pleco</a>
+  </div>
+  <div class="reader-nav">
+    <button id="readerPrev">← Previous</button>
+    <button id="readerNext">Next →</button>
+  </div>
+</div>
+<input type="file" id="epubFileInput" accept=".epub" style="display:none;">
 
 <script>
 (function(){
@@ -494,7 +674,7 @@
         starsHtml = `<div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>`;
       }
       const coverHtml = b.cover ? `<img class="cover" src="${escapeHtml(b.cover)}" alt="">` : '';
-      const freeLinkHtml = b.readUrl ? `<a class="free-link" href="${escapeHtml(b.readUrl)}" target="_blank" rel="noopener">Read free (public domain) →</a>` : '';
+      const freeLinkHtml = (b.readUrl && !b.epubUrl) ? `<a class="free-link" href="${escapeHtml(b.readUrl)}" target="_blank" rel="noopener">Read free (public domain) →</a>` : '';
       card.innerHTML = `
         ${coverHtml}
         <div class="card-body">
@@ -507,9 +687,21 @@
           ${starsHtml}
           ${freeLinkHtml}
           ${b.notes ? `<div class="notes">${escapeHtml(b.notes)}</div>` : ''}
+          <div class="read-actions"></div>
           <div class="row-actions"></div>
         </div>
       `;
+      const readActions = card.querySelector('.read-actions');
+      if(b.epubUrl){
+        const rb = document.createElement('button');
+        rb.className='read-btn'; rb.textContent='Read now (public domain)';
+        rb.onclick=()=>openReaderFromUrl(b.epubUrl, b.title);
+        readActions.appendChild(rb);
+      }
+      const upBtn = document.createElement('button');
+      upBtn.className='read-btn'; upBtn.textContent='Upload your .epub to read';
+      upBtn.onclick=()=>promptEpubUpload(b.title);
+      readActions.appendChild(upBtn);
       const actions = card.querySelector('.row-actions');
       if(b.status!=='reading'){
         const btn = document.createElement('button');
@@ -529,6 +721,10 @@
         btn.onclick=()=>updateStatus(b.id,'dnf');
         actions.appendChild(btn);
       }
+      const editBtn = document.createElement('button');
+      editBtn.className='chip-btn'; editBtn.textContent='Edit';
+      editBtn.onclick=()=>openEditForm(b.id);
+      actions.appendChild(editBtn);
       const del = document.createElement('button');
       del.className='chip-btn danger'; del.textContent='Remove';
       del.onclick=()=>removeBook(b.id);
@@ -647,6 +843,28 @@
   }
 
   document.getElementById('cancelForm').onclick = closeForm;
+  let editingId = null;
+
+  function openEditForm(id){
+    const b = books.find(x=>x.id===id);
+    if(!b) return;
+    editingId = id;
+    document.getElementById('f-title').value = b.title || '';
+    document.getElementById('f-author').value = b.author || '';
+    document.getElementById('f-genre').value = b.genre || '';
+    document.getElementById('f-notes').value = b.notes || '';
+    document.getElementById('f-status').value = b.status || 'want';
+    document.getElementById('f-cover').value = b.cover || '';
+    rating = b.rating || 0;
+    renderStarsInput();
+    document.getElementById('rating-row').style.display = b.status==='finished' ? 'flex' : 'none';
+    document.getElementById('saveForm').textContent = 'Save changes';
+    form.classList.add('open');
+    document.getElementById('openForm').style.display='none';
+    recapPanel.classList.remove('open');
+    form.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
   function closeForm(){
     form.classList.remove('open');
     document.getElementById('openForm').style.display='block';
@@ -659,6 +877,8 @@
     rating = 0; renderStarsInput();
     document.getElementById('rating-row').style.display='none';
     suggestList.classList.remove('open');
+    editingId = null;
+    document.getElementById('saveForm').textContent = 'Save book';
   }
 
   // --- Book search autofill (Google Books) ---
@@ -742,10 +962,12 @@
       const formats = match.formats || {};
       const readUrl = formats['text/html; charset=utf-8'] || formats['text/html']
         || formats['application/epub+zip'] || formats['text/plain; charset=utf-8'];
-      if(!readUrl) return;
+      const epubUrl = formats['application/epub+zip'] || null;
+      if(!readUrl && !epubUrl) return;
       const b = books.find(x => x.id === book.id);
       if(b){
-        b.readUrl = readUrl;
+        if(readUrl) b.readUrl = readUrl;
+        if(epubUrl) b.epubUrl = epubUrl;
         await save();
         renderAll();
       }
@@ -757,23 +979,163 @@
   document.getElementById('saveForm').onclick = async () => {
     const title = document.getElementById('f-title').value.trim();
     if(!title) return;
+    const status = document.getElementById('f-status').value;
+
+    if(editingId){
+      const b = books.find(x=>x.id===editingId);
+      if(b){
+        const wasFinished = b.status === 'finished';
+        b.title = title;
+        b.author = document.getElementById('f-author').value.trim();
+        b.genre = document.getElementById('f-genre').value.trim();
+        b.status = status;
+        b.notes = document.getElementById('f-notes').value.trim();
+        b.rating = status==='finished' ? rating : 0;
+        b.cover = document.getElementById('f-cover').value;
+        if(status==='finished' && !wasFinished) b.finishedDate = Date.now();
+        if(status!=='finished') b.finishedDate = null;
+      }
+      await save();
+      closeForm();
+      renderAll();
+      return;
+    }
+
     const book = {
       id: 'b'+Date.now()+Math.random().toString(36).slice(2,7),
       title,
       author: document.getElementById('f-author').value.trim(),
       genre: document.getElementById('f-genre').value.trim(),
-      status: document.getElementById('f-status').value,
+      status,
       notes: document.getElementById('f-notes').value.trim(),
-      rating: document.getElementById('f-status').value==='finished' ? rating : 0,
+      rating: status==='finished' ? rating : 0,
       cover: document.getElementById('f-cover').value,
       dateAdded: Date.now(),
-      finishedDate: document.getElementById('f-status').value==='finished' ? Date.now() : null
+      finishedDate: status==='finished' ? Date.now() : null
     };
     books.push(book);
     await save();
     checkGutenberg(book);
     closeForm();
     renderAll();
+  };
+
+  // --- EPUB reader (epub.js) ---
+  const readerOverlay = document.getElementById('readerOverlay');
+  const readerViewer = document.getElementById('readerViewer');
+  const readerStatus = document.getElementById('readerStatus');
+  const readerTitleEl = document.getElementById('readerTitle');
+  const epubFileInput = document.getElementById('epubFileInput');
+  let currentRendition = null;
+  let pendingUploadTitle = null;
+
+  function showReaderStatus(msg){
+    readerStatus.textContent = msg;
+    readerStatus.style.display = 'block';
+  }
+  function hideReaderStatus(){
+    readerStatus.style.display = 'none';
+  }
+
+  function openReaderShell(title){
+    readerTitleEl.textContent = title;
+    readerViewer.innerHTML = '';
+    hideReaderStatus();
+    readerOverlay.classList.add('open');
+  }
+
+  const plecoBar = document.getElementById('plecoBar');
+  const plecoWord = document.getElementById('plecoWord');
+  const plecoLink = document.getElementById('plecoLink');
+
+  function closeReader(){
+    readerOverlay.classList.remove('open');
+    if(currentRendition){
+      try{ currentRendition.destroy(); }catch(e){}
+      currentRendition = null;
+    }
+    readerViewer.innerHTML = '';
+    plecoBar.classList.remove('show');
+  }
+  document.getElementById('readerClose').onclick = closeReader;
+
+  function renderBook(book, title){
+    openReaderShell(title);
+    plecoBar.classList.remove('show');
+    try{
+      const rendition = book.renderTo(readerViewer, { width: '100%', height: '100%' });
+      currentRendition = rendition;
+      rendition.display();
+      rendition.on('rendered', hideReaderStatus);
+      rendition.on('selected', (cfiRange, contents) => {
+        try{
+          const sel = contents.window.getSelection();
+          const text = sel ? sel.toString().trim() : '';
+          if(!text) return;
+          plecoWord.textContent = text;
+          plecoLink.href = 'plecoapi://x-callback-url/df?hw=' + encodeURIComponent(text);
+          plecoBar.classList.add('show');
+        }catch(e){}
+      });
+    }catch(e){
+      showReaderStatus("Couldn't open this file — it may not be a valid EPUB.");
+    }
+  }
+
+  async function openReaderFromUrl(url, title){
+    openReaderShell(title);
+    showReaderStatus('Loading book…');
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('fetch failed');
+      const arrayBuffer = await res.arrayBuffer();
+      const book = ePub(arrayBuffer);
+      renderBook(book, title);
+    }catch(e){
+      showReaderStatus("Couldn't load this book directly (the source may block cross-site access). Try the plain link instead if one is shown on the card.");
+    }
+  }
+
+  function promptEpubUpload(title){
+    pendingUploadTitle = title;
+    epubFileInput.value = '';
+    epubFileInput.click();
+  }
+
+  epubFileInput.addEventListener('change', () => {
+    const file = epubFileInput.files[0];
+    if(!file) return;
+    const title = pendingUploadTitle || file.name;
+    openReaderShell(title);
+    showReaderStatus('Opening your file…');
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const book = ePub(reader.result);
+        renderBook(book, title);
+      }catch(e){
+        showReaderStatus("Couldn't open this file — it may not be a valid EPUB.");
+      }
+    };
+    reader.onerror = () => showReaderStatus("Couldn't read that file.");
+    reader.readAsArrayBuffer(file);
+  });
+
+  document.getElementById('readerNext').onclick = () => { if(currentRendition) currentRendition.next(); };
+  document.getElementById('readerPrev').onclick = () => { if(currentRendition) currentRendition.prev(); };
+
+  // --- Theme toggle ---
+  const themeToggle = document.getElementById('themeToggle');
+  function applyTheme(mode){
+    document.body.classList.toggle('light', mode === 'light');
+    themeToggle.textContent = mode === 'light' ? '☀' : '☾';
+  }
+  const savedTheme = localStorage.getItem('bibliothecary-theme') || 'light';
+  applyTheme(savedTheme);
+  themeToggle.onclick = () => {
+    const next = document.body.classList.contains('light') ? 'dark' : 'light';
+    applyTheme(next);
+    localStorage.setItem('bibliothecary-theme', next);
   };
 
   load();
