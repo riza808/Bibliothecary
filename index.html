@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bibliothecary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #1F1420;
+    --ink-soft: #2B1B2C;
+    --paper: #F5E4EE;
+    --paper-dark: #EAD0E0;
+    --text-on-ink: #F5E4EE;
+    --text-on-paper: #33132C;
+    --text-muted: #935C82;
+    --seal: #E4007C;
+    --seal-dim: #E4007C2E;
+    --jade: #9B2C82;
+    --jade-dim: #9B2C8222;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--text-on-ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    padding:28px 20px 60px;
+    min-height:100vh;
+  }
+  .wrap{max-width:880px;margin:0 auto;}
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:16px;
+    margin-bottom:22px;
+    border-bottom:1px solid #ffffff22;
+    padding-bottom:18px;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-optical-sizing:auto;
+    font-weight:500;
+    font-size:2.1rem;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .tally{
+    font-size:0.8rem;
+    color:var(--text-muted);
+    text-align:right;
+    line-height:1.5;
+  }
+  .tally b{color:var(--text-on-ink);font-weight:600;}
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+  .tab{
+    background:transparent;
+    border:1px solid #ffffff33;
+    color:var(--text-on-ink);
+    padding:7px 14px;
+    border-radius:999px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.85rem;
+    cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  .tab:hover{border-color:#ffffff66;}
+  .tab.active{
+    background:var(--jade);
+    border-color:var(--jade);
+    color:#fff;
+  }
+
+  .addbar{
+    margin-bottom:24px;
+    display:flex;
+    gap:8px;
+  }
+  .addbtn{
+    flex:1;
+    text-align:left;
+    background:var(--ink-soft);
+    border:1px dashed #ffffff44;
+    color:var(--text-muted);
+    padding:13px 16px;
+    border-radius:8px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.9rem;
+    cursor:pointer;
+  }
+  .addbtn:hover{border-color:#ffffff77;color:var(--text-on-ink);}
+  .recapbtn{
+    background:transparent;
+    border:1px solid #ffffff33;
+    color:var(--text-on-ink);
+    padding:13px 16px;
+    border-radius:8px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.9rem;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .recapbtn:hover{border-color:#ffffff66;}
+
+  .recap{
+    background:var(--paper);
+    color:var(--text-on-paper);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:24px;
+    display:none;
+    box-shadow: 4px 4px 0 var(--seal);
+  }
+  .recap.open{display:block; animation: settle .25s ease;}
+  .recap h2{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:1.3rem;
+    margin:0 0 4px;
+  }
+  .recap .recap-sub{
+    font-size:0.8rem;
+    color:var(--text-muted);
+    margin-bottom:16px;
+  }
+  .recap-month{margin-bottom:16px;}
+  .recap-month:last-child{margin-bottom:0;}
+  .recap-month .m-head{
+    font-size:0.85rem;
+    font-weight:600;
+    margin-bottom:6px;
+    display:flex;
+    justify-content:space-between;
+  }
+  .recap-month .m-head span:last-child{color:var(--text-muted); font-weight:400;}
+  .recap-list{list-style:none; margin:0; padding:0;}
+  .recap-list li{
+    font-size:0.85rem;
+    padding:5px 0;
+    border-top:1px solid #00000014;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .recap-list li .rl-stars{color:var(--seal); font-size:0.75rem; flex-shrink:0;}
+
+  .form{
+    background:var(--paper);
+    color:var(--text-on-paper);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:24px;
+    display:none;
+    box-shadow: 4px 4px 0 var(--jade);
+  }
+  .form.open{display:block; animation: settle .25s ease;}
+  @keyframes settle{ from{ transform:translateY(-6px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .form-row{display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .form-row > *{flex:1; min-width:140px;}
+  .form label{
+    display:block;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--text-muted);
+    margin-bottom:4px;
+  }
+  .form input[type=text], .form select, .form textarea{
+    width:100%;
+    background:#fff;
+    border:1px solid #00000022;
+    border-radius:6px;
+    padding:8px 10px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.9rem;
+    color:var(--text-on-paper);
+  }
+  .form textarea{resize:vertical; min-height:50px;}
+  .title-field{position:relative;}
+  .suggest-list{
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    background:#fff;
+    border:1px solid #00000022;
+    border-radius:8px;
+    margin-top:4px;
+    max-height:260px;
+    overflow-y:auto;
+    z-index:20;
+    box-shadow:0 6px 18px #00000022;
+    display:none;
+  }
+  .suggest-list.open{display:block;}
+  .suggest-item{
+    display:flex;
+    gap:10px;
+    padding:8px 10px;
+    cursor:pointer;
+    align-items:flex-start;
+  }
+  .suggest-item:hover{background:var(--paper-dark);}
+  .suggest-item img{
+    width:32px;
+    height:46px;
+    object-fit:cover;
+    border-radius:3px;
+    flex-shrink:0;
+    background:#eee;
+  }
+  .suggest-item .s-title{font-size:0.85rem; font-weight:500; line-height:1.25;}
+  .suggest-item .s-author{font-size:0.75rem; color:var(--text-muted);}
+  .suggest-hint{font-size:0.7rem; color:var(--text-muted); padding:6px 10px;}
+  .stars-input{display:flex; gap:4px; font-size:1.3rem; cursor:pointer;}
+  .stars-input span{opacity:.3;}
+  .stars-input span.filled{opacity:1;}
+  .form-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:12px;}
+  .btn{
+    border:none;
+    border-radius:6px;
+    padding:9px 16px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.85rem;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--seal); color:#fff;}
+  .btn-ghost{background:transparent; color:var(--text-muted);}
+  .btn-ghost:hover{color:var(--text-on-paper);}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
+    gap:14px;
+  }
+  .card{
+    background:var(--paper);
+    color:var(--text-on-paper);
+    border-radius:8px;
+    padding:16px;
+    position:relative;
+    border-left:4px solid var(--jade);
+    display:flex;
+    gap:12px;
+  }
+  .card .cover{
+    width:44px;
+    height:64px;
+    object-fit:cover;
+    border-radius:3px;
+    flex-shrink:0;
+    background:var(--paper-dark);
+  }
+  .card .card-body{flex:1; min-width:0;}
+  .card.status-reading{border-left-color:var(--seal);}
+  .card.status-finished{border-left-color:#B3467E;}
+  .card.status-dnf{border-left-color:#6B5568;}
+  .card h3{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:1.08rem;
+    margin:0 0 2px;
+    line-height:1.25;
+  }
+  .card .author{
+    font-size:0.82rem;
+    color:var(--text-muted);
+    margin-bottom:8px;
+  }
+  .card .meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:0.75rem;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .genre-tag{
+    background:var(--jade-dim);
+    color:var(--jade);
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:0.7rem;
+  }
+  .stars{color:var(--seal); font-size:0.85rem; letter-spacing:1px;}
+  .free-link{
+    display:inline-block;
+    font-size:0.75rem;
+    color:var(--jade);
+    text-decoration:none;
+    border-bottom:1px solid var(--jade);
+    margin-top:6px;
+  }
+  .free-link:hover{opacity:0.75;}
+  .card .notes{
+    font-size:0.82rem;
+    color:var(--text-on-paper);
+    margin-top:8px;
+    line-height:1.4;
+    white-space:pre-wrap;
+  }
+  .card .row-actions{
+    display:flex;
+    gap:6px;
+    margin-top:12px;
+    flex-wrap:wrap;
+  }
+  .chip-btn{
+    background:transparent;
+    border:1px solid #00000022;
+    color:var(--text-muted);
+    font-size:0.72rem;
+    padding:4px 9px;
+    border-radius:999px;
+    cursor:pointer;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .chip-btn:hover{border-color:#00000055; color:var(--text-on-paper);}
+  .chip-btn.danger:hover{border-color:var(--seal); color:var(--seal);}
+
+  .empty{
+    text-align:center;
+    color:var(--text-muted);
+    padding:50px 20px;
+    font-size:0.9rem;
+  }
+  .empty b{color:var(--text-on-ink); font-family:'Fraunces',serif; font-weight:500; display:block; font-size:1.2rem; margin-bottom:6px;}
+  .toast{
+    position:fixed;
+    bottom:18px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--ink-soft);
+    color:var(--text-on-ink);
+    border:1px solid #ffffff33;
+    padding:10px 16px;
+    border-radius:8px;
+    font-size:0.82rem;
+    box-shadow:0 6px 18px #00000055;
+    z-index:50;
+    display:none;
+  }
+  .toast.show{display:block;}
+  .toast.err{border-color:var(--seal); color:#ffd6ea;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Bibliothecary</h1>
+    <div class="tally" id="tally"></div>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="addbar">
+    <button class="addbtn" id="openForm">+ Add a book</button>
+    <button class="recapbtn" id="openRecap">Monthly recap</button>
+  </div>
+
+  <div class="recap" id="recapPanel"></div>
+
+  <div class="form" id="form">
+    <div class="form-row">
+      <div class="title-field">
+        <label>Title</label>
+        <input type="text" id="f-title" placeholder="Start typing a title..." autocomplete="off">
+        <div class="suggest-list" id="suggestList"></div>
+        <input type="hidden" id="f-cover">
+      </div>
+      <div>
+        <label>Author</label>
+        <input type="text" id="f-author" placeholder="Author">
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Status</label>
+        <select id="f-status">
+          <option value="want">To read</option>
+          <option value="reading">Reading</option>
+          <option value="finished">Finished</option>
+          <option value="dnf">DNF</option>
+        </select>
+      </div>
+      <div>
+        <label>Genre</label>
+        <input type="text" id="f-genre" placeholder="e.g. crime, wuxia, webtoon">
+      </div>
+    </div>
+    <div class="form-row" id="rating-row" style="display:none;">
+      <div>
+        <label>Rating</label>
+        <div class="stars-input" id="f-stars"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Thoughts, quotes, where you left off..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="cancelForm">Cancel</button>
+      <button class="btn btn-primary" id="saveForm">Save book</button>
+    </div>
+  </div>
+
+  <div id="gridWrap"></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  const STORE_KEY = 'books';
+  let books = [];
+  let filter = 'all';
+  let rating = 0;
+  let loaded = false;
+
+  const tabsEl = document.getElementById('tabs');
+  const gridWrap = document.getElementById('gridWrap');
+  const tallyEl = document.getElementById('tally');
+  const form = document.getElementById('form');
+  const starsInput = document.getElementById('f-stars');
+
+  const STATUSES = [
+    {key:'all', label:'All'},
+    {key:'want', label:'To read'},
+    {key:'reading', label:'Reading'},
+    {key:'finished', label:'Finished'},
+    {key:'dnf', label:'DNF'}
+  ];
+
+  function renderStarsInput(){
+    starsInput.innerHTML = '';
+    for(let i=1;i<=5;i++){
+      const s = document.createElement('span');
+      s.textContent = '★';
+      if(i<=rating) s.classList.add('filled');
+      s.onclick = () => { rating = i; renderStarsInput(); };
+      starsInput.appendChild(s);
+    }
+  }
+  renderStarsInput();
+
+  function renderTabs(){
+    tabsEl.innerHTML = '';
+    STATUSES.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'tab' + (filter===s.key ? ' active' : '');
+      btn.textContent = s.label;
+      btn.onclick = () => { filter = s.key; renderAll(); };
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  function renderTally(){
+    const want = books.filter(b=>b.status==='want').length;
+    const reading = books.filter(b=>b.status==='reading').length;
+    const finished = books.filter(b=>b.status==='finished').length;
+    const dnf = books.filter(b=>b.status==='dnf').length;
+    tallyEl.innerHTML = `<b>${finished}</b> finished &nbsp;·&nbsp; <b>${reading}</b> reading &nbsp;·&nbsp; <b>${want}</b> to read &nbsp;·&nbsp; <b>${dnf}</b> DNF`;
+  }
+
+  function statusLabel(s){
+    return {want:'To read', reading:'Reading', finished:'Finished', dnf:'DNF'}[s] || s;
+  }
+
+  function renderGrid(){
+    const list = filter==='all' ? books : books.filter(b=>b.status===filter);
+    if(list.length===0){
+      gridWrap.innerHTML = `<div class="empty"><b>Nothing here yet</b>Add a book to start your shelf.</div>`;
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    list.slice().reverse().forEach(b => {
+      const card = document.createElement('div');
+      card.className = 'card status-' + b.status;
+      let starsHtml = '';
+      if(b.status==='finished' && b.rating){
+        starsHtml = `<div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>`;
+      }
+      const coverHtml = b.cover ? `<img class="cover" src="${escapeHtml(b.cover)}" alt="">` : '';
+      const freeLinkHtml = b.readUrl ? `<a class="free-link" href="${escapeHtml(b.readUrl)}" target="_blank" rel="noopener">Read free (public domain) →</a>` : '';
+      card.innerHTML = `
+        ${coverHtml}
+        <div class="card-body">
+          <h3>${escapeHtml(b.title)}</h3>
+          <div class="author">${escapeHtml(b.author || 'Unknown author')}</div>
+          <div class="meta">
+            <span class="genre-tag">${escapeHtml(b.genre || 'unsorted')}</span>
+            <span>${statusLabel(b.status)}</span>
+          </div>
+          ${starsHtml}
+          ${freeLinkHtml}
+          ${b.notes ? `<div class="notes">${escapeHtml(b.notes)}</div>` : ''}
+          <div class="row-actions"></div>
+        </div>
+      `;
+      const actions = card.querySelector('.row-actions');
+      if(b.status!=='reading'){
+        const btn = document.createElement('button');
+        btn.className='chip-btn'; btn.textContent='Mark reading';
+        btn.onclick=()=>updateStatus(b.id,'reading');
+        actions.appendChild(btn);
+      }
+      if(b.status!=='finished'){
+        const btn = document.createElement('button');
+        btn.className='chip-btn'; btn.textContent='Mark finished';
+        btn.onclick=()=>updateStatus(b.id,'finished');
+        actions.appendChild(btn);
+      }
+      if(b.status!=='dnf'){
+        const btn = document.createElement('button');
+        btn.className='chip-btn'; btn.textContent='Mark DNF';
+        btn.onclick=()=>updateStatus(b.id,'dnf');
+        actions.appendChild(btn);
+      }
+      const del = document.createElement('button');
+      del.className='chip-btn danger'; del.textContent='Remove';
+      del.onclick=()=>removeBook(b.id);
+      actions.appendChild(del);
+      grid.appendChild(card);
+    });
+    gridWrap.innerHTML = '';
+    gridWrap.appendChild(grid);
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function renderAll(){
+    renderTabs();
+    renderTally();
+    renderGrid();
+  }
+
+  async function save(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(books));
+      return true;
+    }catch(e){
+      const toast = document.getElementById('toast');
+      console.error('localStorage save failed', e);
+      toast.textContent = "Couldn't save — your browser storage may be full or blocked.";
+      toast.classList.add('show','err');
+      return false;
+    }
+  }
+
+  async function load(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      books = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      books = [];
+    }
+    loaded = true;
+    renderAll();
+  }
+
+  function updateStatus(id, status){
+    const b = books.find(x=>x.id===id);
+    if(b){
+      b.status = status;
+      if(status==='finished') b.finishedDate = Date.now();
+      save(); renderAll();
+    }
+  }
+  function removeBook(id){
+    books = books.filter(x=>x.id!==id);
+    save(); renderAll();
+  }
+
+  document.getElementById('openForm').onclick = () => {
+    form.classList.add('open');
+    document.getElementById('openForm').style.display='none';
+    recapPanel.classList.remove('open');
+  };
+
+  const recapPanel = document.getElementById('recapPanel');
+  const openRecapBtn = document.getElementById('openRecap');
+  openRecapBtn.onclick = () => {
+    if(recapPanel.classList.contains('open')){
+      recapPanel.classList.remove('open');
+      return;
+    }
+    renderRecap();
+    recapPanel.classList.add('open');
+    form.classList.remove('open');
+    document.getElementById('openForm').style.display='block';
+  };
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function renderRecap(){
+    const finished = books.filter(b => b.status==='finished' && b.finishedDate);
+    if(finished.length===0){
+      recapPanel.innerHTML = `
+        <h2>Monthly recap</h2>
+        <div class="recap-sub">No finished books with a date yet — mark something finished and it'll show up here.</div>
+      `;
+      return;
+    }
+    const groups = {};
+    finished.forEach(b => {
+      const d = new Date(b.finishedDate);
+      const key = d.getFullYear() + '-' + String(d.getMonth()).padStart(2,'0');
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(b);
+    });
+    const keys = Object.keys(groups).sort().reverse();
+    const now = new Date();
+    const thisKey = now.getFullYear() + '-' + String(now.getMonth()).padStart(2,'0');
+    const thisMonthCount = (groups[thisKey] || []).length;
+
+    let html = `<h2>Monthly recap</h2><div class="recap-sub">${thisMonthCount} finished so far this ${MONTH_NAMES[now.getMonth()]}</div>`;
+    keys.forEach(key => {
+      const [y, m] = key.split('-').map(Number);
+      const list = groups[key];
+      html += `<div class="recap-month">
+        <div class="m-head"><span>${MONTH_NAMES[m]} ${y}</span><span>${list.length} finished</span></div>
+        <ul class="recap-list">`;
+      list.forEach(b => {
+        const starsStr = b.rating ? '★'.repeat(b.rating) : '';
+        html += `<li><span>${escapeHtml(b.title)}</span><span class="rl-stars">${starsStr}</span></li>`;
+      });
+      html += `</ul></div>`;
+    });
+    recapPanel.innerHTML = html;
+  }
+
+  document.getElementById('cancelForm').onclick = closeForm;
+  function closeForm(){
+    form.classList.remove('open');
+    document.getElementById('openForm').style.display='block';
+    document.getElementById('f-title').value='';
+    document.getElementById('f-author').value='';
+    document.getElementById('f-genre').value='';
+    document.getElementById('f-notes').value='';
+    document.getElementById('f-status').value='want';
+    document.getElementById('f-cover').value='';
+    rating = 0; renderStarsInput();
+    document.getElementById('rating-row').style.display='none';
+    suggestList.classList.remove('open');
+  }
+
+  // --- Book search autofill (Google Books) ---
+  const titleInput = document.getElementById('f-title');
+  const suggestList = document.getElementById('suggestList');
+  let searchTimer = null;
+
+  titleInput.addEventListener('input', () => {
+    const q = titleInput.value.trim();
+    document.getElementById('f-cover').value = ''; // typing manually clears prior pick
+    clearTimeout(searchTimer);
+    if(q.length < 3){
+      suggestList.classList.remove('open');
+      suggestList.innerHTML = '';
+      return;
+    }
+    searchTimer = setTimeout(() => searchBooks(q), 400);
+  });
+
+  document.addEventListener('click', (e) => {
+    if(!suggestList.contains(e.target) && e.target !== titleInput){
+      suggestList.classList.remove('open');
+    }
+  });
+
+  async function searchBooks(q){
+    suggestList.innerHTML = `<div class="suggest-hint">Searching…</div>`;
+    suggestList.classList.add('open');
+    try{
+      const res = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=6&q=' + encodeURIComponent(q));
+      const data = await res.json();
+      const items = (data.items || []).filter(it => it.volumeInfo && it.volumeInfo.title);
+      if(items.length === 0){
+        suggestList.innerHTML = `<div class="suggest-hint">No matches — you can keep typing manually.</div>`;
+        return;
+      }
+      suggestList.innerHTML = '';
+      items.forEach(it => {
+        const info = it.volumeInfo;
+        const thumb = info.imageLinks ? (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail) : '';
+        const authors = (info.authors || []).join(', ');
+        const genre = (info.categories || [])[0] || '';
+        const row = document.createElement('div');
+        row.className = 'suggest-item';
+        row.innerHTML = `
+          ${thumb ? `<img src="${thumb.replace('http:','https:')}" alt="">` : `<div class="cover" style="width:32px;height:46px;border-radius:3px;background:var(--paper-dark);"></div>`}
+          <div>
+            <div class="s-title">${escapeHtml(info.title)}</div>
+            <div class="s-author">${escapeHtml(authors || 'Unknown author')}</div>
+          </div>
+        `;
+        row.onclick = () => {
+          titleInput.value = info.title;
+          document.getElementById('f-author').value = authors;
+          if(genre) document.getElementById('f-genre').value = genre;
+          document.getElementById('f-cover').value = thumb ? thumb.replace('http:','https:') : '';
+          suggestList.classList.remove('open');
+        };
+        suggestList.appendChild(row);
+      });
+    }catch(e){
+      suggestList.innerHTML = `<div class="suggest-hint">Search unavailable — you can type it in manually.</div>`;
+    }
+  }
+
+  document.getElementById('f-status').onchange = (e) => {
+    document.getElementById('rating-row').style.display = e.target.value==='finished' ? 'flex' : 'none';
+  };
+
+  // --- Free public-domain check (Project Gutenberg via Gutendex) ---
+  async function checkGutenberg(book){
+    try{
+      const res = await fetch('https://gutendex.com/books/?search=' + encodeURIComponent(book.title));
+      const data = await res.json();
+      const results = data.results || [];
+      if(results.length === 0) return;
+      // pick the closest title match
+      const norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      const target = norm(book.title);
+      const match = results.find(r => norm(r.title) === target) || results[0];
+      const formats = match.formats || {};
+      const readUrl = formats['text/html; charset=utf-8'] || formats['text/html']
+        || formats['application/epub+zip'] || formats['text/plain; charset=utf-8'];
+      if(!readUrl) return;
+      const b = books.find(x => x.id === book.id);
+      if(b){
+        b.readUrl = readUrl;
+        await save();
+        renderAll();
+      }
+    }catch(e){
+      // silently skip — this is a bonus feature, not core
+    }
+  }
+
+  document.getElementById('saveForm').onclick = async () => {
+    const title = document.getElementById('f-title').value.trim();
+    if(!title) return;
+    const book = {
+      id: 'b'+Date.now()+Math.random().toString(36).slice(2,7),
+      title,
+      author: document.getElementById('f-author').value.trim(),
+      genre: document.getElementById('f-genre').value.trim(),
+      status: document.getElementById('f-status').value,
+      notes: document.getElementById('f-notes').value.trim(),
+      rating: document.getElementById('f-status').value==='finished' ? rating : 0,
+      cover: document.getElementById('f-cover').value,
+      dateAdded: Date.now(),
+      finishedDate: document.getElementById('f-status').value==='finished' ? Date.now() : null
+    };
+    books.push(book);
+    await save();
+    checkGutenberg(book);
+    closeForm();
+    renderAll();
+  };
+
+  load();
+})();
+</script>
+</body>
+</html>
