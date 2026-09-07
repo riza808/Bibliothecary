@@ -436,6 +436,11 @@
     flex-shrink:0;
     font-size:1rem;
   }
+  .reader-bar-actions{
+    display:flex;
+    gap:8px;
+    flex-shrink:0;
+  }
   .reader-body{
     flex:1;
     position:relative;
@@ -445,6 +450,17 @@
     position:absolute;
     inset:0;
   }
+  .tap-zone{
+    position:absolute;
+    top:0;
+    bottom:0;
+    width:16%;
+    z-index:5;
+    background:transparent;
+    cursor:pointer;
+  }
+  .tap-left{left:0;}
+  .tap-right{right:0;}
   .reader-nav{
     display:flex;
     justify-content:space-between;
@@ -585,10 +601,15 @@
 <div class="reader-overlay" id="readerOverlay">
   <div class="reader-bar">
     <div class="reader-title" id="readerTitle"></div>
-    <button class="reader-close" id="readerClose" aria-label="Close reader">✕</button>
+    <div class="reader-bar-actions">
+      <button class="reader-close" id="readerColumns" title="Toggle 1/2 column layout" aria-label="Toggle column layout">1</button>
+      <button class="reader-close" id="readerClose" aria-label="Close reader">✕</button>
+    </div>
   </div>
   <div class="reader-body">
     <div id="readerViewer"></div>
+    <div class="tap-zone tap-left" id="tapLeft"></div>
+    <div class="tap-zone tap-right" id="tapRight"></div>
     <div class="reader-status" id="readerStatus" style="display:none;"></div>
   </div>
   <div class="pleco-bar" id="plecoBar">
@@ -696,12 +717,12 @@
       if(b.epubUrl){
         const rb = document.createElement('button');
         rb.className='read-btn'; rb.textContent='Read now (public domain)';
-        rb.onclick=()=>openReaderFromUrl(b.epubUrl, b.title);
+        rb.onclick=()=>openReaderFromUrl(b.epubUrl, b.title, b.id);
         readActions.appendChild(rb);
       }
       const upBtn = document.createElement('button');
-      upBtn.className='read-btn'; upBtn.textContent='Upload your .epub to read';
-      upBtn.onclick=()=>promptEpubUpload(b.title);
+      upBtn.className='read-btn'; upBtn.textContent='Read (.epub)';
+      upBtn.onclick=()=>promptEpubUpload(b.id, b.title);
       readActions.appendChild(upBtn);
       const actions = card.querySelector('.row-actions');
       if(b.status!=='reading'){
@@ -1027,8 +1048,63 @@
   const readerStatus = document.getElementById('readerStatus');
   const readerTitleEl = document.getElementById('readerTitle');
   const epubFileInput = document.getElementById('epubFileInput');
+  const tapLeft = document.getElementById('tapLeft');
+  const tapRight = document.getElementById('tapRight');
+  const readerColumnsBtn = document.getElementById('readerColumns');
   let currentRendition = null;
+  let currentBookId = null;
   let pendingUploadTitle = null;
+  let pendingUploadBookId = null;
+  let columnMode = 'none'; // 'none' = 1 column, 'auto' = epub.js decides (usually 2 on wide screens)
+
+  // --- Local file storage for uploaded epubs (IndexedDB, so it survives reload) ---
+  const EPUB_DB_NAME = 'bibliothecary-epubs';
+  const EPUB_STORE = 'files';
+  function openEpubDB(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(EPUB_DB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(EPUB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function saveEpubFile(bookId, arrayBuffer){
+    try{
+      const db = await openEpubDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(EPUB_STORE, 'readwrite');
+        tx.objectStore(EPUB_STORE).put(arrayBuffer, bookId);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    }catch(e){ return false; }
+  }
+  async function loadEpubFile(bookId){
+    try{
+      const db = await openEpubDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(EPUB_STORE, 'readonly');
+        const req = tx.objectStore(EPUB_STORE).get(bookId);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    }catch(e){ return null; }
+  }
+
+  // --- Reading-progress memory (per book, by CFI position) ---
+  function getProgress(bookId){
+    try{
+      const map = JSON.parse(localStorage.getItem('bibliothecary-progress') || '{}');
+      return map[bookId] || null;
+    }catch(e){ return null; }
+  }
+  function saveProgressLoc(bookId, cfi){
+    try{
+      const map = JSON.parse(localStorage.getItem('bibliothecary-progress') || '{}');
+      map[bookId] = cfi;
+      localStorage.setItem('bibliothecary-progress', JSON.stringify(map));
+    }catch(e){}
+  }
 
   function showReaderStatus(msg){
     readerStatus.textContent = msg;
@@ -1055,19 +1131,35 @@
       try{ currentRendition.destroy(); }catch(e){}
       currentRendition = null;
     }
+    currentBookId = null;
     readerViewer.innerHTML = '';
     plecoBar.classList.remove('show');
   }
   document.getElementById('readerClose').onclick = closeReader;
 
-  function renderBook(book, title){
+  readerColumnsBtn.onclick = () => {
+    columnMode = columnMode === 'none' ? 'auto' : 'none';
+    readerColumnsBtn.textContent = columnMode === 'none' ? '1' : '2';
+    if(currentRendition){
+      try{ currentRendition.spread(columnMode); }catch(e){}
+    }
+  };
+
+  function renderBook(epubBook, title, bookId){
     openReaderShell(title);
     plecoBar.classList.remove('show');
+    currentBookId = bookId || null;
     try{
-      const rendition = book.renderTo(readerViewer, { width: '100%', height: '100%' });
+      const rendition = epubBook.renderTo(readerViewer, { width: '100%', height: '100%', spread: columnMode });
       currentRendition = rendition;
-      rendition.display();
+      const savedLoc = bookId ? getProgress(bookId) : null;
+      rendition.display(savedLoc || undefined);
       rendition.on('rendered', hideReaderStatus);
+      rendition.on('relocated', (location) => {
+        if(bookId && location && location.start && location.start.cfi){
+          saveProgressLoc(bookId, location.start.cfi);
+        }
+      });
       rendition.on('selected', (cfiRange, contents) => {
         try{
           const sel = contents.window.getSelection();
@@ -1083,22 +1175,35 @@
     }
   }
 
-  async function openReaderFromUrl(url, title){
+  async function openReaderFromUrl(url, title, bookId){
     openReaderShell(title);
     showReaderStatus('Loading book…');
     try{
       const res = await fetch(url);
       if(!res.ok) throw new Error('fetch failed');
       const arrayBuffer = await res.arrayBuffer();
-      const book = ePub(arrayBuffer);
-      renderBook(book, title);
+      const epubBook = ePub(arrayBuffer);
+      renderBook(epubBook, title, bookId);
     }catch(e){
       showReaderStatus("Couldn't load this book directly (the source may block cross-site access). Try the plain link instead if one is shown on the card.");
     }
   }
 
-  function promptEpubUpload(title){
+  async function promptEpubUpload(bookId, title){
+    const stored = bookId ? await loadEpubFile(bookId) : null;
+    if(stored){
+      openReaderShell(title);
+      showReaderStatus('Loading your saved copy…');
+      try{
+        const epubBook = ePub(stored);
+        renderBook(epubBook, title, bookId);
+      }catch(e){
+        showReaderStatus("Couldn't reopen the saved file — try uploading it again below.");
+      }
+      return;
+    }
     pendingUploadTitle = title;
+    pendingUploadBookId = bookId;
     epubFileInput.value = '';
     epubFileInput.click();
   }
@@ -1107,13 +1212,16 @@
     const file = epubFileInput.files[0];
     if(!file) return;
     const title = pendingUploadTitle || file.name;
+    const bookId = pendingUploadBookId;
     openReaderShell(title);
     showReaderStatus('Opening your file…');
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try{
-        const book = ePub(reader.result);
-        renderBook(book, title);
+        const buf = reader.result;
+        const epubBook = ePub(buf);
+        renderBook(epubBook, title, bookId);
+        if(bookId) saveEpubFile(bookId, buf);
       }catch(e){
         showReaderStatus("Couldn't open this file — it may not be a valid EPUB.");
       }
@@ -1124,6 +1232,8 @@
 
   document.getElementById('readerNext').onclick = () => { if(currentRendition) currentRendition.next(); };
   document.getElementById('readerPrev').onclick = () => { if(currentRendition) currentRendition.prev(); };
+  tapRight.onclick = () => { if(currentRendition) currentRendition.next(); };
+  tapLeft.onclick = () => { if(currentRendition) currentRendition.prev(); };
 
   // --- Theme toggle ---
   const themeToggle = document.getElementById('themeToggle');
