@@ -1654,17 +1654,27 @@
   }
 
   async function fetchArrayBufferWithFallback(url){
-    try{
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('bad status');
-      return await res.arrayBuffer();
-    }catch(e){
-      // Direct fetch blocked (likely CORS) — retry through a free public CORS proxy
-      const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-      const res2 = await fetch(proxied);
-      if(!res2.ok) throw new Error('proxy also failed');
-      return await res2.arrayBuffer();
+    // Try a direct fetch first, then chain through a couple of free public
+    // CORS proxies as backups — these free services are occasionally down,
+    // so trying more than one improves the odds one of them works.
+    const attempts = [
+      url,
+      'https://corsproxy.io/?url=' + encodeURIComponent(url),
+      'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+    ];
+    let lastErr = null;
+    for(const attemptUrl of attempts){
+      try{
+        const res = await fetch(attemptUrl);
+        if(!res.ok) throw new Error('bad status ' + res.status);
+        const buf = await res.arrayBuffer();
+        if(buf.byteLength < 100) throw new Error('response too small, likely an error page');
+        return buf;
+      }catch(e){
+        lastErr = e;
+      }
     }
+    throw lastErr || new Error('all fetch attempts failed');
   }
 
   async function openReaderFromUrl(url, title, bookId){
