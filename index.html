@@ -189,6 +189,40 @@
   }
   .library-del:hover{color:var(--seal);}
 
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));
+    gap:10px;
+    margin:14px 0;
+  }
+  .stat-box{
+    background:var(--paper-dark);
+    border-radius:8px;
+    padding:12px;
+    text-align:center;
+  }
+  .stat-num{
+    font-family:'Fraunces', serif;
+    font-size:1.6rem;
+    font-weight:500;
+  }
+  .stat-label{
+    font-size:0.7rem;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    margin-top:2px;
+  }
+  .reminder-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    border-top:1px solid #00000014;
+    padding-top:14px;
+  }
+
   .addbar{
     margin-bottom:24px;
     display:flex;
@@ -716,10 +750,12 @@
     <button class="addbtn" id="openForm">+ Add a book</button>
     <button class="recapbtn" id="openRecap">Monthly recap</button>
     <button class="recapbtn" id="openLibrary">Library</button>
+    <button class="recapbtn" id="openStats">Stats</button>
   </div>
 
   <div class="recap" id="recapPanel"></div>
   <div class="recap" id="libraryPanel"></div>
+  <div class="recap" id="statsPanel"></div>
 
   <div class="form" id="form">
     <div class="form-row">
@@ -1016,7 +1052,24 @@
     renderGrid();
   }
 
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function recordActivity(){
+    try{
+      let log = JSON.parse(localStorage.getItem('bibliothecary-activity') || '[]');
+      const t = todayStr();
+      if(!log.includes(t)){
+        log.push(t);
+        if(log.length > 400) log = log.slice(-400);
+        localStorage.setItem('bibliothecary-activity', JSON.stringify(log));
+      }
+    }catch(e){}
+  }
+
   async function save(){
+    recordActivity();
     try{
       localStorage.setItem(STORE_KEY, JSON.stringify(books));
       return true;
@@ -1058,6 +1111,7 @@
     document.getElementById('openForm').style.display='none';
     recapPanel.classList.remove('open');
     libraryPanel.classList.remove('open');
+    statsPanel.classList.remove('open');
     renderShelfChecks([]);
   };
 
@@ -1071,6 +1125,7 @@
     renderRecap();
     recapPanel.classList.add('open');
     libraryPanel.classList.remove('open');
+    statsPanel.classList.remove('open');
     form.classList.remove('open');
     document.getElementById('openForm').style.display='block';
   };
@@ -1085,9 +1140,98 @@
     renderLibraryPanel();
     libraryPanel.classList.add('open');
     recapPanel.classList.remove('open');
+    statsPanel.classList.remove('open');
     form.classList.remove('open');
     document.getElementById('openForm').style.display='block';
   };
+
+  const statsPanel = document.getElementById('statsPanel');
+  const openStatsBtn = document.getElementById('openStats');
+  openStatsBtn.onclick = () => {
+    if(statsPanel.classList.contains('open')){
+      statsPanel.classList.remove('open');
+      return;
+    }
+    renderStatsPanel();
+    statsPanel.classList.add('open');
+    recapPanel.classList.remove('open');
+    libraryPanel.classList.remove('open');
+    form.classList.remove('open');
+    document.getElementById('openForm').style.display='block';
+  };
+
+  function computeStreak(){
+    try{
+      const log = new Set(JSON.parse(localStorage.getItem('bibliothecary-activity') || '[]'));
+      let streak = 0;
+      let d = new Date();
+      while(true){
+        const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        if(log.has(key)){ streak++; d.setDate(d.getDate() - 1); } else { break; }
+      }
+      return streak;
+    }catch(e){ return 0; }
+  }
+
+  function reminderEnabled(){
+    return localStorage.getItem('bibliothecary-reminder') === 'on';
+  }
+
+  async function toggleReminder(){
+    if(reminderEnabled()){
+      localStorage.setItem('bibliothecary-reminder', 'off');
+      renderStatsPanel();
+      return;
+    }
+    if(!('Notification' in window)){
+      alert('Notifications are not supported in this browser.');
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if(perm === 'granted'){
+      localStorage.setItem('bibliothecary-reminder', 'on');
+    }
+    renderStatsPanel();
+  }
+
+  function renderStatsPanel(){
+    const streak = computeStreak();
+    const finishedBooks = books.filter(b => b.status === 'finished');
+    const thisYear = new Date().getFullYear();
+    const finishedThisYear = finishedBooks.filter(b => b.finishedDate && new Date(b.finishedDate).getFullYear() === thisYear).length;
+    const withBoth = finishedBooks.filter(b => b.dateAdded && b.finishedDate);
+    let avgDays = '—';
+    if(withBoth.length){
+      const totalDays = withBoth.reduce((sum, b) => sum + Math.max(0, (b.finishedDate - b.dateAdded) / 86400000), 0);
+      avgDays = Math.round(totalDays / withBoth.length);
+    }
+    let html = `<h2>Reading stats</h2>`;
+    html += `<div class="recap-sub">${streak} day${streak===1?'':'s'} streak — keep it going</div>`;
+    html += `<div class="stats-grid">
+      <div class="stat-box"><div class="stat-num">${finishedBooks.length}</div><div class="stat-label">Total finished</div></div>
+      <div class="stat-box"><div class="stat-num">${finishedThisYear}</div><div class="stat-label">Finished this year</div></div>
+      <div class="stat-box"><div class="stat-num">${avgDays}</div><div class="stat-label">Avg days to finish</div></div>
+    </div>`;
+    html += `<div class="reminder-row">
+      <span class="shelf-hint">Get a gentle nudge when you open the app if you haven't logged anything today.</span>
+      <button class="btn btn-primary" id="reminderToggleBtn">${reminderEnabled() ? 'Reminder: On (tap to turn off)' : 'Enable daily reminder'}</button>
+    </div>`;
+    statsPanel.innerHTML = html;
+    document.getElementById('reminderToggleBtn').onclick = toggleReminder;
+  }
+
+  function maybeShowReminder(){
+    try{
+      if(!reminderEnabled()) return;
+      if(!('Notification' in window) || Notification.permission !== 'granted') return;
+      const log = JSON.parse(localStorage.getItem('bibliothecary-activity') || '[]');
+      const t = todayStr();
+      if(log.includes(t)) return;
+      if(localStorage.getItem('bibliothecary-last-reminder') === t) return;
+      new Notification('Bibliothecary', { body: "Don't forget to log today's reading!" });
+      localStorage.setItem('bibliothecary-last-reminder', t);
+    }catch(e){}
+  }
 
   function renderLibraryPanel(){
     let html = `
@@ -1223,6 +1367,7 @@
     document.getElementById('openForm').style.display='none';
     recapPanel.classList.remove('open');
     libraryPanel.classList.remove('open');
+    statsPanel.classList.remove('open');
     form.scrollIntoView({behavior:'smooth', block:'start'});
   }
 
@@ -1750,6 +1895,7 @@
   };
 
   load();
+  maybeShowReminder();
 })();
 </script>
 </body>
