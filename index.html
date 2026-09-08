@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bibliothecary</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 <style>
@@ -537,6 +537,52 @@
     cursor:pointer;
   }
   .reader-settings-group button:hover{border-color:var(--hairline-hover);}
+  .reader-settings-group select{
+    background:transparent;
+    border:1px solid var(--hairline-strong);
+    color:var(--text-on-ink);
+    height:28px;
+    border-radius:6px;
+    font-size:0.8rem;
+    font-family:'IBM Plex Sans',sans-serif;
+    padding:0 4px;
+  }
+  .notes-panel{
+    display:none;
+    max-height:180px;
+    overflow-y:auto;
+    background:var(--paper);
+    color:var(--text-on-paper);
+    padding:12px 16px;
+    border-bottom:1px solid var(--hairline);
+    flex-shrink:0;
+  }
+  .notes-panel.show{display:block;}
+  .notes-panel-empty{
+    font-size:0.85rem;
+    color:var(--text-muted);
+  }
+  .notes-panel-list{list-style:none; margin:0; padding:0;}
+  .notes-panel-list li{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+    padding:6px 0;
+    border-top:1px solid #00000014;
+    font-size:0.85rem;
+  }
+  .notes-panel-list li:first-child{border-top:none;}
+  .notes-del{
+    background:transparent;
+    border:none;
+    color:var(--text-muted);
+    cursor:pointer;
+    font-size:0.9rem;
+    flex-shrink:0;
+    line-height:1;
+  }
+  .notes-del:hover{color:var(--seal);}
   #pageThemeToggle{
     width:auto;
     padding:0 10px;
@@ -548,7 +594,7 @@
     transition: background .2s;
   }
   .reader-body.page-dim{
-    background:#3a3a3a;
+    background:#c9c9c9;
   }
   #readerViewer{
     position:absolute;
@@ -735,15 +781,25 @@
   <div class="reader-bar">
     <div class="reader-title" id="readerTitle"></div>
     <div class="reader-bar-actions">
+      <button class="reader-close" id="readerNotesBtn" title="View notes for this book" aria-label="View notes">📝</button>
       <button class="reader-close" id="readerColumns" title="Toggle 1/2 column layout" aria-label="Toggle column layout">1</button>
       <button class="reader-close" id="readerClose" aria-label="Close reader">✕</button>
     </div>
   </div>
+  <div class="notes-panel" id="notesPanel"></div>
   <div class="reader-settings">
     <div class="reader-settings-group">
       <span class="reader-settings-label">Text</span>
       <button id="fontDec" aria-label="Smaller text">A−</button>
       <button id="fontInc" aria-label="Larger text">A+</button>
+    </div>
+    <div class="reader-settings-group">
+      <span class="reader-settings-label">Font</span>
+      <select id="fontFamilySelect">
+        <option value="serif">Serif</option>
+        <option value="Roboto">Roboto</option>
+        <option value="Trebuchet MS">Trebuchet</option>
+      </select>
     </div>
     <div class="reader-settings-group">
       <span class="reader-settings-label">Margin</span>
@@ -1344,20 +1400,30 @@
   let pendingUploadBookId = null;
   let columnMode = 'none'; // 'none' = 1 column, 'auto' = epub.js decides (usually 2 on wide screens)
 
-  // --- Font size & margin (persisted) ---
+  // --- Font size, family & margin (persisted) ---
   function loadReaderPrefs(){
     try{
       const saved = JSON.parse(localStorage.getItem('bibliothecary-reader-prefs'));
-      return Object.assign({ fontPct: 100, marginPx: 24, pageTheme: 'white' }, saved || {});
-    }catch(e){ return { fontPct: 100, marginPx: 24, pageTheme: 'white' }; }
+      return Object.assign({ fontPct: 100, marginPx: 24, pageTheme: 'white', fontFamily: 'serif' }, saved || {});
+    }catch(e){ return { fontPct: 100, marginPx: 24, pageTheme: 'white', fontFamily: 'serif' }; }
   }
   function saveReaderPrefs(){
     try{ localStorage.setItem('bibliothecary-reader-prefs', JSON.stringify(readerPrefs)); }catch(e){}
   }
   let readerPrefs = loadReaderPrefs();
 
+  // Font stacks include CJK-friendly fallbacks — Roboto/Trebuchet have no Chinese
+  // glyphs, so Chinese text always falls back to the device's own Chinese font;
+  // only Latin characters actually change with these picks.
+  const FONT_STACKS = {
+    serif: 'Georgia, "Songti SC", "Noto Serif SC", serif',
+    'Roboto': '"Roboto", "PingFang SC", "Microsoft YaHei", sans-serif',
+    'Trebuchet MS': '"Trebuchet MS", "PingFang SC", "Microsoft YaHei", sans-serif'
+  };
+
   const readerBodyEl = document.querySelector('.reader-body');
   const pageThemeToggle = document.getElementById('pageThemeToggle');
+  const fontFamilySelect = document.getElementById('fontFamilySelect');
 
   function applyPageTheme(){
     const dim = readerPrefs.pageTheme === 'dim';
@@ -1372,10 +1438,11 @@
         'body': { 'background': '#ffffff !important', 'color': '#1a1a1a !important' }
       });
       currentRendition.themes.register('dim', {
-        'body': { 'background': '#3a3a3a !important', 'color': '#d4d4d4 !important' }
+        'body': { 'background': '#c9c9c9 !important', 'color': '#2a2a2a !important' }
       });
       currentRendition.themes.select(readerPrefs.pageTheme);
       currentRendition.themes.fontSize(readerPrefs.fontPct + '%');
+      currentRendition.themes.font(FONT_STACKS[readerPrefs.fontFamily] || FONT_STACKS.serif);
       currentRendition.themes.default({
         'body': {
           'padding-left': readerPrefs.marginPx + 'px !important',
@@ -1454,7 +1521,36 @@
   const plecoWord = document.getElementById('plecoWord');
   const plecoLink = document.getElementById('plecoLink');
   const addToNotesBtn = document.getElementById('addToNotesBtn');
+  const notesPanel = document.getElementById('notesPanel');
+  const readerNotesBtn = document.getElementById('readerNotesBtn');
   let currentSelectedText = '';
+
+  function renderNotesPanel(){
+    const b = books.find(x => x.id === currentBookId);
+    if(!b){ notesPanel.innerHTML = ''; return; }
+    const lines = (b.notes || '').split('\n').filter(l => l.trim());
+    if(lines.length === 0){
+      notesPanel.innerHTML = `<div class="notes-panel-empty">No notes yet — select text while reading and tap "+ Notes" to collect words and phrases here.</div>`;
+      return;
+    }
+    notesPanel.innerHTML = `<ul class="notes-panel-list">${lines.map((l,i) =>
+      `<li><span>${escapeHtml(l)}</span><button class="notes-del" data-idx="${i}" aria-label="Remove">×</button></li>`
+    ).join('')}</ul>`;
+    notesPanel.querySelectorAll('.notes-del').forEach(btn => {
+      btn.onclick = async () => {
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        lines.splice(idx, 1);
+        b.notes = lines.join('\n');
+        await save();
+        renderNotesPanel();
+      };
+    });
+  }
+
+  readerNotesBtn.onclick = () => {
+    notesPanel.classList.toggle('show');
+    if(notesPanel.classList.contains('show')) renderNotesPanel();
+  };
 
   function closeReader(){
     readerOverlay.classList.remove('open');
@@ -1465,6 +1561,7 @@
     currentBookId = null;
     readerViewer.innerHTML = '';
     plecoBar.classList.remove('show');
+    notesPanel.classList.remove('show');
     renderAll();
   }
   document.getElementById('readerClose').onclick = closeReader;
@@ -1478,6 +1575,7 @@
     await save();
     addToNotesBtn.textContent = 'Added ✓';
     addToNotesBtn.classList.add('added');
+    if(notesPanel.classList.contains('show')) renderNotesPanel();
   };
 
   readerColumnsBtn.onclick = () => {
@@ -1510,6 +1608,12 @@
   };
   pageThemeToggle.onclick = () => {
     readerPrefs.pageTheme = readerPrefs.pageTheme === 'dim' ? 'white' : 'dim';
+    saveReaderPrefs();
+    applyReaderPrefs();
+  };
+  fontFamilySelect.value = readerPrefs.fontFamily;
+  fontFamilySelect.onchange = () => {
+    readerPrefs.fontFamily = fontFamilySelect.value;
     saveReaderPrefs();
     applyReaderPrefs();
   };
