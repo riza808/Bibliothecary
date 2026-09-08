@@ -2011,6 +2011,12 @@
         if(!res.ok) throw new Error('bad status ' + res.status);
         const buf = await res.arrayBuffer();
         if(buf.byteLength < 100) throw new Error('response too small, likely an error page');
+        // EPUB files are zip archives — real ones start with the "PK" magic
+        // bytes. A proxy that's rate-limited or blocked often returns an
+        // HTML/JSON error page instead, which can still be a few KB, so the
+        // size check alone isn't enough — check the actual file signature.
+        const head = new Uint8Array(buf.slice(0, 2));
+        if(head[0] !== 0x50 || head[1] !== 0x4B) throw new Error('not a valid zip/epub file — likely a proxy error page');
         return buf;
       }catch(e){
         lastErr = e;
@@ -2027,6 +2033,7 @@
       const epubBook = ePub(arrayBuffer);
       renderBook(epubBook, title, bookId);
     }catch(e){
+      console.error('Failed to load book from URL:', url, e);
       showReaderStatus("Couldn't load this book right now. You can try again, or use your own downloaded copy with the upload option instead.");
     }
   }
