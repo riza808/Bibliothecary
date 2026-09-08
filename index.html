@@ -1415,33 +1415,32 @@
     suggestList.innerHTML = `<div class="suggest-hint">Searching…</div>`;
     suggestList.classList.add('open');
     try{
-      const res = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=6&q=' + encodeURIComponent(q));
+      const res = await fetch('https://openlibrary.org/search.json?limit=6&q=' + encodeURIComponent(q));
       const data = await res.json();
-      const items = (data.items || []).filter(it => it.volumeInfo && it.volumeInfo.title);
+      const items = (data.docs || []).filter(it => it.title);
       if(items.length === 0){
         suggestList.innerHTML = `<div class="suggest-hint">No matches — you can keep typing manually.</div>`;
         return;
       }
       suggestList.innerHTML = '';
       items.forEach(it => {
-        const info = it.volumeInfo;
-        const thumb = info.imageLinks ? (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail) : '';
-        const authors = (info.authors || []).join(', ');
-        const genre = (info.categories || [])[0] || '';
+        const thumb = it.cover_i ? `https://covers.openlibrary.org/b/id/${it.cover_i}-M.jpg` : '';
+        const authors = (it.author_name || []).join(', ');
+        const genre = (it.subject || [])[0] || '';
         const row = document.createElement('div');
         row.className = 'suggest-item';
         row.innerHTML = `
-          ${thumb ? `<img src="${thumb.replace('http:','https:')}" alt="">` : `<div class="cover" style="width:32px;height:46px;border-radius:3px;background:var(--paper-dark);"></div>`}
+          ${thumb ? `<img src="${thumb}" alt="">` : `<div class="cover" style="width:32px;height:46px;border-radius:3px;background:var(--paper-dark);"></div>`}
           <div>
-            <div class="s-title">${escapeHtml(info.title)}</div>
+            <div class="s-title">${escapeHtml(it.title)}</div>
             <div class="s-author">${escapeHtml(authors || 'Unknown author')}</div>
           </div>
         `;
         row.onclick = () => {
-          titleInput.value = info.title;
+          titleInput.value = it.title;
           document.getElementById('f-author').value = authors;
           if(genre) document.getElementById('f-genre').value = genre;
-          document.getElementById('f-cover').value = thumb ? thumb.replace('http:','https:') : '';
+          document.getElementById('f-cover').value = thumb;
           suggestList.classList.remove('open');
         };
         suggestList.appendChild(row);
