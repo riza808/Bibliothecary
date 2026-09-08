@@ -507,6 +507,104 @@
     flex-direction:column;
   }
   .reader-overlay.open{display:flex;}
+
+  .footer-ornament{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    margin-top:44px;
+    padding:20px 0 4px;
+  }
+  .footer-ornament .line{
+    flex:1;
+    max-width:110px;
+    height:1px;
+    background:var(--hairline-strong);
+  }
+  .footer-ornament .glyph{
+    font-size:1.15rem;
+    color:var(--seal);
+    opacity:0.75;
+    line-height:1;
+  }
+
+  .scan-btn{
+    background:transparent;
+    border:1px solid var(--hairline-strong);
+    color:var(--text-muted);
+    font-size:0.72rem;
+    padding:2px 8px;
+    border-radius:999px;
+    cursor:pointer;
+    margin-left:8px;
+  }
+  .scan-btn:hover{border-color:var(--hairline-hover);color:var(--text-on-ink);}
+
+  .scanner-overlay{
+    position:fixed;
+    inset:0;
+    background:#000;
+    z-index:110;
+    display:none;
+    flex-direction:column;
+  }
+  .scanner-overlay.open{display:flex;}
+  .scanner-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 16px;
+    flex-shrink:0;
+    background:#000;
+  }
+  .scanner-title{color:#fff; font-family:'IBM Plex Sans',sans-serif; font-size:0.9rem;}
+  .scanner-close{
+    background:transparent;
+    border:1px solid #ffffff55;
+    color:#fff;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:1rem;
+  }
+  .scanner-body{
+    position:relative;
+    flex:1;
+    overflow:hidden;
+  }
+  .scanner-video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .scanner-frame{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:78%;
+    max-width:340px;
+    aspect-ratio:8/5;
+    border:2px solid var(--seal);
+    border-radius:10px;
+    box-shadow:0 0 0 2000px #00000066;
+    pointer-events:none;
+  }
+  .scanner-status{
+    position:absolute;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#000000cc;
+    color:#fff;
+    padding:10px 18px;
+    border-radius:999px;
+    font-size:0.82rem;
+    font-family:'IBM Plex Sans',sans-serif;
+    text-align:center;
+    max-width:85%;
+  }
   .reader-bar{
     display:flex;
     align-items:center;
@@ -748,10 +846,13 @@
 
   <div class="addbar">
     <button class="addbtn" id="openForm">+ Add a book</button>
+    <button class="recapbtn" id="openImportEpubs">Import 📚</button>
     <button class="recapbtn" id="openRecap">Monthly recap</button>
     <button class="recapbtn" id="openLibrary">Library</button>
     <button class="recapbtn" id="openStats">Stats</button>
   </div>
+  <input type="file" id="bulkEpubInput" accept=".epub" multiple style="display:none;">
+  <div class="recap" id="importStatusPanel" style="display:none;"></div>
 
   <div class="recap" id="recapPanel"></div>
   <div class="recap" id="libraryPanel"></div>
@@ -760,7 +861,7 @@
   <div class="form" id="form">
     <div class="form-row">
       <div class="title-field">
-        <label>Title</label>
+        <label>Title <button type="button" id="scanBarcodeBtn" class="scan-btn" title="Scan ISBN barcode">📷 Scan</button></label>
         <input type="text" id="f-title" placeholder="Start typing a title..." autocomplete="off">
         <div class="suggest-list" id="suggestList"></div>
         <input type="hidden" id="f-cover">
@@ -810,7 +911,24 @@
   </div>
 
   <div id="gridWrap"></div>
+  <div class="footer-ornament">
+    <span class="line"></span>
+    <span class="glyph">❦</span>
+    <span class="line"></span>
+  </div>
   <div class="toast" id="toast"></div>
+</div>
+
+<div class="scanner-overlay" id="scannerOverlay">
+  <div class="scanner-bar">
+    <div class="scanner-title">Scan ISBN barcode</div>
+    <button class="scanner-close" id="scannerClose" aria-label="Close scanner">✕</button>
+  </div>
+  <div class="scanner-body">
+    <video class="scanner-video" id="scannerVideo" playsinline muted autoplay></video>
+    <div class="scanner-frame"></div>
+    <div class="scanner-status" id="scannerStatus">Point your camera at the barcode on the back of the book</div>
+  </div>
 </div>
 
 <div class="reader-overlay" id="readerOverlay">
@@ -1450,6 +1568,85 @@
     }
   }
 
+  // --- Barcode scanner (ISBN autofill via Open Library) ---
+  const scannerOverlay = document.getElementById('scannerOverlay');
+  const scannerVideo = document.getElementById('scannerVideo');
+  const scannerStatus = document.getElementById('scannerStatus');
+  let scannerStream = null;
+  let scannerLoopId = null;
+  let scannerDetector = null;
+
+  function stopScanner(){
+    if(scannerLoopId) cancelAnimationFrame(scannerLoopId);
+    scannerLoopId = null;
+    if(scannerStream){
+      scannerStream.getTracks().forEach(t => t.stop());
+      scannerStream = null;
+    }
+    scannerVideo.srcObject = null;
+    scannerOverlay.classList.remove('open');
+  }
+
+  async function lookupIsbn(isbn){
+    scannerStatus.textContent = 'Found a barcode — looking up the book…';
+    try{
+      const res = await fetch('https://openlibrary.org/api/books?bibkeys=ISBN:' + isbn + '&format=json&jscmd=data');
+      const data = await res.json();
+      const info = data['ISBN:' + isbn];
+      if(!info){
+        scannerStatus.textContent = "Couldn't find that ISBN — try again or type it in manually.";
+        // resume scanning after a short pause
+        setTimeout(() => { if(scannerOverlay.classList.contains('open')) scanLoop(); }, 1500);
+        return;
+      }
+      stopScanner();
+      titleInput.value = info.title || '';
+      document.getElementById('f-author').value = (info.authors || []).map(a => a.name).join(', ');
+      if(info.subjects && info.subjects[0]) document.getElementById('f-genre').value = info.subjects[0].name;
+      const thumb = info.cover ? (info.cover.medium || info.cover.large || info.cover.small) : '';
+      document.getElementById('f-cover').value = thumb || '';
+    }catch(e){
+      scannerStatus.textContent = 'Lookup failed — check your connection and try again.';
+      setTimeout(() => { if(scannerOverlay.classList.contains('open')) scanLoop(); }, 1500);
+    }
+  }
+
+  function scanLoop(){
+    if(!scannerDetector || !scannerOverlay.classList.contains('open')) return;
+    scannerDetector.detect(scannerVideo).then(codes => {
+      if(codes.length > 0){
+        const raw = codes[0].rawValue.replace(/[^0-9Xx]/g, '');
+        if(raw.length === 10 || raw.length === 13){
+          lookupIsbn(raw);
+          return;
+        }
+      }
+      scannerLoopId = requestAnimationFrame(scanLoop);
+    }).catch(() => {
+      scannerLoopId = requestAnimationFrame(scanLoop);
+    });
+  }
+
+  document.getElementById('scanBarcodeBtn').onclick = async () => {
+    if(!('BarcodeDetector' in window)){
+      alert("Barcode scanning isn't supported in this browser. Try Chrome on Android, or type the title in manually.");
+      return;
+    }
+    scannerStatus.textContent = 'Point your camera at the barcode on the back of the book';
+    scannerOverlay.classList.add('open');
+    try{
+      scannerDetector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a'] });
+      scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      scannerVideo.srcObject = scannerStream;
+      await scannerVideo.play();
+      scanLoop();
+    }catch(e){
+      scannerStatus.textContent = "Couldn't access the camera — check your browser's camera permission.";
+    }
+  };
+
+  document.getElementById('scannerClose').onclick = stopScanner;
+
   document.getElementById('f-status').onchange = (e) => {
     document.getElementById('rating-row').style.display = e.target.value==='finished' ? 'flex' : 'none';
   };
@@ -1798,11 +1995,12 @@
   }
 
   async function fetchArrayBufferWithFallback(url){
-    // Try a direct fetch first, then chain through a couple of free public
+    // Try a direct fetch first, then chain through a few free public
     // CORS proxies as backups — these free services are occasionally down,
     // so trying more than one improves the odds one of them works.
     const attempts = [
       url,
+      'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
       'https://corsproxy.io/?url=' + encodeURIComponent(url),
       'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
     ];
@@ -1876,6 +2074,81 @@
 
   document.getElementById('readerNext').onclick = () => { if(currentRendition) currentRendition.next(); };
   document.getElementById('readerPrev').onclick = () => { if(currentRendition) currentRendition.prev(); };
+
+  // --- Bulk EPUB import (reads title/author/cover straight from each file) ---
+  const bulkEpubInput = document.getElementById('bulkEpubInput');
+  const importStatusPanel = document.getElementById('importStatusPanel');
+
+  function showImportStatus(html){
+    importStatusPanel.style.display = 'block';
+    importStatusPanel.innerHTML = html;
+  }
+
+  async function extractEpubMeta(arrayBuffer){
+    const tempBook = ePub(arrayBuffer);
+    await tempBook.ready;
+    const metadata = await tempBook.loaded.metadata;
+    let cover = '';
+    try{
+      const coverUrl = await tempBook.coverUrl();
+      if(coverUrl){
+        const res = await fetch(coverUrl);
+        const blob = await res.blob();
+        cover = await new Promise((resolve) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result);
+          fr.onerror = () => resolve('');
+          fr.readAsDataURL(blob);
+        });
+        URL.revokeObjectURL(coverUrl);
+      }
+    }catch(e){}
+    try{ tempBook.destroy(); }catch(e){}
+    return { title: (metadata && metadata.title) || '', author: (metadata && metadata.creator) || '', cover };
+  }
+
+  document.getElementById('openImportEpubs').onclick = () => {
+    bulkEpubInput.value = '';
+    bulkEpubInput.click();
+  };
+
+  bulkEpubInput.addEventListener('change', async () => {
+    const files = Array.from(bulkEpubInput.files || []);
+    if(files.length === 0) return;
+    let done = 0, failed = 0;
+    showImportStatus(`<b>Importing books…</b><br>0 of ${files.length}`);
+    for(const file of files){
+      showImportStatus(`<b>Importing books…</b><br>${done + failed} of ${files.length} — ${escapeHtml(file.name)}`);
+      try{
+        const metaBuf = await file.arrayBuffer();
+        const meta = await extractEpubMeta(metaBuf);
+        const bookId = 'b'+Date.now()+Math.random().toString(36).slice(2,7);
+        const book = {
+          id: bookId,
+          title: meta.title || file.name.replace(/\.epub$/i, ''),
+          author: meta.author || '',
+          genre: '',
+          status: 'want',
+          notes: '',
+          rating: 0,
+          cover: meta.cover || '',
+          shelves: [],
+          dateAdded: Date.now(),
+          finishedDate: null
+        };
+        books.push(book);
+        const storeBuf = await file.arrayBuffer();
+        await saveEpubFile(bookId, storeBuf);
+        done++;
+      }catch(e){
+        failed++;
+      }
+    }
+    await save();
+    renderAll();
+    showImportStatus(`<b>Import finished.</b><br>${done} book${done!==1?'s':''} added${failed ? `, ${failed} failed` : ''}.<br><button class="chip-btn" id="closeImportStatus" style="margin-top:8px;">Close</button>`);
+    document.getElementById('closeImportStatus').onclick = () => { importStatusPanel.style.display = 'none'; };
+  });
   tapRight.onclick = () => { if(currentRendition) currentRendition.next(); };
   tapLeft.onclick = () => { if(currentRendition) currentRendition.prev(); };
 
