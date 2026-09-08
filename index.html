@@ -124,6 +124,70 @@
     border-color:var(--jade);
     color:#fff;
   }
+  .shelf-tabs{margin-bottom:16px;}
+  .shelf-tabs .tab.active{
+    background:var(--seal);
+    border-color:var(--seal);
+  }
+  .shelf-tabs:empty{display:none; margin-bottom:0;}
+
+  .shelf-checks{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .shelf-check{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background:var(--paper-dark);
+    padding:5px 10px;
+    border-radius:999px;
+    font-size:0.8rem;
+    cursor:pointer;
+  }
+  .shelf-check input{margin:0;}
+  .shelf-hint{font-size:0.8rem; color:var(--text-muted);}
+  .card-shelves{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;}
+  .shelf-tag{
+    background:var(--seal-dim);
+    color:var(--seal);
+    font-size:0.68rem;
+    padding:2px 7px;
+    border-radius:999px;
+  }
+  .library-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .library-row input{
+    flex:1;
+    background:#fff;
+    border:1px solid #00000022;
+    border-radius:6px;
+    padding:8px 10px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.9rem;
+  }
+  .library-list{list-style:none; margin:0; padding:0;}
+  .library-list li{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 0;
+    border-top:1px solid #00000014;
+    font-size:0.88rem;
+  }
+  .library-list .shelf-count{color:var(--text-muted); font-size:0.78rem; margin-left:8px;}
+  .library-del{
+    background:transparent;
+    border:none;
+    color:var(--text-muted);
+    cursor:pointer;
+    font-size:0.78rem;
+  }
+  .library-del:hover{color:var(--seal);}
 
   .addbar{
     margin-bottom:24px;
@@ -144,6 +208,7 @@
   }
   .addbtn:hover{border-color:var(--hairline-hover-strong);color:var(--text-on-ink);}
   .recapbtn{
+    flex:1;
     background:transparent;
     border:1px solid var(--hairline-strong);
     color:var(--text-on-ink);
@@ -152,7 +217,7 @@
     font-family:'IBM Plex Sans',sans-serif;
     font-size:0.9rem;
     cursor:pointer;
-    white-space:nowrap;
+    text-align:center;
   }
   .recapbtn:hover{border-color:var(--hairline-hover);}
 
@@ -441,10 +506,49 @@
     gap:8px;
     flex-shrink:0;
   }
+  .reader-settings{
+    display:flex;
+    gap:20px;
+    padding:8px 16px;
+    border-bottom:1px solid var(--hairline);
+    flex-shrink:0;
+    flex-wrap:wrap;
+  }
+  .reader-settings-group{
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .reader-settings-label{
+    font-size:0.72rem;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-right:2px;
+  }
+  .reader-settings-group button{
+    background:transparent;
+    border:1px solid var(--hairline-strong);
+    color:var(--text-on-ink);
+    width:32px;
+    height:28px;
+    border-radius:6px;
+    font-size:0.85rem;
+    cursor:pointer;
+  }
+  .reader-settings-group button:hover{border-color:var(--hairline-hover);}
+  #pageThemeToggle{
+    width:auto;
+    padding:0 10px;
+  }
   .reader-body{
     flex:1;
     position:relative;
     background:#fff;
+    transition: background .2s;
+  }
+  .reader-body.page-dim{
+    background:#3a3a3a;
   }
   #readerViewer{
     position:absolute;
@@ -498,6 +602,26 @@
     white-space:nowrap;
     flex-shrink:0;
   }
+  .pleco-actions{
+    display:flex;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .pleco-note-btn{
+    background:transparent;
+    border:1px solid var(--jade);
+    color:var(--jade);
+    padding:7px 12px;
+    border-radius:6px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.82rem;
+    white-space:nowrap;
+    cursor:pointer;
+  }
+  .pleco-note-btn.added{
+    background:var(--jade);
+    color:#fff;
+  }
   .reader-nav button{
     background:var(--jade);
     color:#fff;
@@ -540,13 +664,16 @@
   </header>
 
   <div class="tabs" id="tabs"></div>
+  <div class="tabs shelf-tabs" id="shelfTabs"></div>
 
   <div class="addbar">
     <button class="addbtn" id="openForm">+ Add a book</button>
     <button class="recapbtn" id="openRecap">Monthly recap</button>
+    <button class="recapbtn" id="openLibrary">Library</button>
   </div>
 
   <div class="recap" id="recapPanel"></div>
+  <div class="recap" id="libraryPanel"></div>
 
   <div class="form" id="form">
     <div class="form-row">
@@ -583,6 +710,12 @@
       </div>
     </div>
     <div class="form-row">
+      <div style="flex-basis:100%;">
+        <label>Shelves</label>
+        <div class="shelf-checks" id="shelfChecks"></div>
+      </div>
+    </div>
+    <div class="form-row">
       <div>
         <label>Notes</label>
         <textarea id="f-notes" placeholder="Thoughts, quotes, where you left off..."></textarea>
@@ -606,6 +739,22 @@
       <button class="reader-close" id="readerClose" aria-label="Close reader">✕</button>
     </div>
   </div>
+  <div class="reader-settings">
+    <div class="reader-settings-group">
+      <span class="reader-settings-label">Text</span>
+      <button id="fontDec" aria-label="Smaller text">A−</button>
+      <button id="fontInc" aria-label="Larger text">A+</button>
+    </div>
+    <div class="reader-settings-group">
+      <span class="reader-settings-label">Margin</span>
+      <button id="marginDec" aria-label="Smaller margin">−</button>
+      <button id="marginInc" aria-label="Larger margin">+</button>
+    </div>
+    <div class="reader-settings-group">
+      <span class="reader-settings-label">Page</span>
+      <button id="pageThemeToggle" aria-label="Toggle page brightness">White</button>
+    </div>
+  </div>
   <div class="reader-body">
     <div id="readerViewer"></div>
     <div class="tap-zone tap-left" id="tapLeft"></div>
@@ -614,7 +763,10 @@
   </div>
   <div class="pleco-bar" id="plecoBar">
     <div class="pleco-word" id="plecoWord"></div>
-    <a class="pleco-link" id="plecoLink" href="#">Look up in Pleco</a>
+    <div class="pleco-actions">
+      <button class="pleco-note-btn" id="addToNotesBtn">+ Notes</button>
+      <a class="pleco-link" id="plecoLink" href="#">Look up in Pleco</a>
+    </div>
   </div>
   <div class="reader-nav">
     <button id="readerPrev">← Previous</button>
@@ -626,16 +778,31 @@
 <script>
 (function(){
   const STORE_KEY = 'books';
+  const SHELVES_KEY = 'bibliothecary-shelves';
   let books = [];
   let filter = 'all';
+  let shelfFilter = 'all';
+  let shelves = [];
   let rating = 0;
   let loaded = false;
 
   const tabsEl = document.getElementById('tabs');
+  const shelfTabsEl = document.getElementById('shelfTabs');
   const gridWrap = document.getElementById('gridWrap');
   const tallyEl = document.getElementById('tally');
   const form = document.getElementById('form');
   const starsInput = document.getElementById('f-stars');
+  const shelfChecksEl = document.getElementById('shelfChecks');
+
+  function loadShelves(){
+    try{
+      shelves = JSON.parse(localStorage.getItem(SHELVES_KEY)) || [];
+    }catch(e){ shelves = []; }
+  }
+  function saveShelves(){
+    try{ localStorage.setItem(SHELVES_KEY, JSON.stringify(shelves)); }catch(e){}
+  }
+  loadShelves();
 
   const STATUSES = [
     {key:'all', label:'All'},
@@ -668,6 +835,23 @@
     });
   }
 
+  function renderShelfTabs(){
+    shelfTabsEl.innerHTML = '';
+    if(shelves.length === 0) return;
+    const allBtn = document.createElement('button');
+    allBtn.className = 'tab' + (shelfFilter==='all' ? ' active' : '');
+    allBtn.textContent = 'All shelves';
+    allBtn.onclick = () => { shelfFilter = 'all'; renderAll(); };
+    shelfTabsEl.appendChild(allBtn);
+    shelves.forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'tab' + (shelfFilter===name ? ' active' : '');
+      btn.textContent = name;
+      btn.onclick = () => { shelfFilter = name; renderAll(); };
+      shelfTabsEl.appendChild(btn);
+    });
+  }
+
   function renderTally(){
     const want = books.filter(b=>b.status==='want').length;
     const reading = books.filter(b=>b.status==='reading').length;
@@ -681,7 +865,10 @@
   }
 
   function renderGrid(){
-    const list = filter==='all' ? books : books.filter(b=>b.status===filter);
+    let list = filter==='all' ? books : books.filter(b=>b.status===filter);
+    if(shelfFilter !== 'all'){
+      list = list.filter(b => Array.isArray(b.shelves) && b.shelves.includes(shelfFilter));
+    }
     if(list.length===0){
       gridWrap.innerHTML = `<div class="empty"><b>Nothing here yet</b>Add a book to start your shelf.</div>`;
       return;
@@ -697,6 +884,8 @@
       }
       const coverHtml = b.cover ? `<img class="cover" src="${escapeHtml(b.cover)}" alt="">` : '';
       const freeLinkHtml = (b.readUrl && !b.epubUrl) ? `<a class="free-link" href="${escapeHtml(b.readUrl)}" target="_blank" rel="noopener">Read free (public domain) →</a>` : '';
+      const shelfTagsHtml = (Array.isArray(b.shelves) && b.shelves.length)
+        ? `<div class="card-shelves">${b.shelves.map(s=>`<span class="shelf-tag">${escapeHtml(s)}</span>`).join('')}</div>` : '';
       card.innerHTML = `
         ${coverHtml}
         <div class="card-body">
@@ -707,6 +896,7 @@
             <span>${statusLabel(b.status)}</span>
           </div>
           ${starsHtml}
+          ${shelfTagsHtml}
           ${freeLinkHtml}
           ${b.notes ? `<div class="notes">${escapeHtml(b.notes)}</div>` : ''}
           <div class="read-actions"></div>
@@ -765,6 +955,7 @@
 
   function renderAll(){
     renderTabs();
+    renderShelfTabs();
     renderTally();
     renderGrid();
   }
@@ -810,6 +1001,8 @@
     form.classList.add('open');
     document.getElementById('openForm').style.display='none';
     recapPanel.classList.remove('open');
+    libraryPanel.classList.remove('open');
+    renderShelfChecks([]);
   };
 
   const recapPanel = document.getElementById('recapPanel');
@@ -821,9 +1014,97 @@
     }
     renderRecap();
     recapPanel.classList.add('open');
+    libraryPanel.classList.remove('open');
     form.classList.remove('open');
     document.getElementById('openForm').style.display='block';
   };
+
+  const libraryPanel = document.getElementById('libraryPanel');
+  const openLibraryBtn = document.getElementById('openLibrary');
+  openLibraryBtn.onclick = () => {
+    if(libraryPanel.classList.contains('open')){
+      libraryPanel.classList.remove('open');
+      return;
+    }
+    renderLibraryPanel();
+    libraryPanel.classList.add('open');
+    recapPanel.classList.remove('open');
+    form.classList.remove('open');
+    document.getElementById('openForm').style.display='block';
+  };
+
+  function renderLibraryPanel(){
+    let html = `
+      <h2>Library</h2>
+      <div class="recap-sub">Create shelves to sort your books your own way — genre, mood, whatever fits.</div>
+      <div class="library-row">
+        <input type="text" id="newShelfInput" placeholder="New shelf name…">
+        <button class="btn btn-primary" id="addShelfBtn">Add shelf</button>
+      </div>
+    `;
+    if(shelves.length === 0){
+      html += `<div class="shelf-hint">No shelves yet — add one above.</div>`;
+    } else {
+      html += `<ul class="library-list">`;
+      shelves.forEach(name => {
+        const count = books.filter(b => Array.isArray(b.shelves) && b.shelves.includes(name)).length;
+        html += `<li><span>${escapeHtml(name)}<span class="shelf-count">${count} book${count===1?'':'s'}</span></span><button class="library-del" data-shelf="${escapeHtml(name)}">Delete</button></li>`;
+      });
+      html += `</ul>`;
+    }
+    libraryPanel.innerHTML = html;
+
+    document.getElementById('addShelfBtn').onclick = () => {
+      const input = document.getElementById('newShelfInput');
+      const name = input.value.trim();
+      if(!name) return;
+      if(shelves.some(s => s.toLowerCase() === name.toLowerCase())){
+        input.value = '';
+        return;
+      }
+      shelves.push(name);
+      saveShelves();
+      renderLibraryPanel();
+      renderShelfChecks(currentEditShelves());
+      renderAll();
+    };
+
+    libraryPanel.querySelectorAll('.library-del').forEach(btn => {
+      btn.onclick = () => {
+        const name = btn.getAttribute('data-shelf');
+        shelves = shelves.filter(s => s !== name);
+        saveShelves();
+        books.forEach(b => {
+          if(Array.isArray(b.shelves)) b.shelves = b.shelves.filter(s => s !== name);
+        });
+        save();
+        if(shelfFilter === name) shelfFilter = 'all';
+        renderLibraryPanel();
+        renderShelfChecks(currentEditShelves());
+        renderAll();
+      };
+    });
+  }
+
+  function currentEditShelves(){
+    if(!editingId) return [];
+    const b = books.find(x => x.id === editingId);
+    return (b && Array.isArray(b.shelves)) ? b.shelves : [];
+  }
+
+  function renderShelfChecks(selected){
+    selected = selected || [];
+    if(shelves.length === 0){
+      shelfChecksEl.innerHTML = `<div class="shelf-hint">No shelves yet — create one in Library, then assign it here.</div>`;
+      return;
+    }
+    shelfChecksEl.innerHTML = shelves.map(name => `
+      <label class="shelf-check">
+        <input type="checkbox" value="${escapeHtml(name)}" ${selected.includes(name) ? 'checked' : ''}>
+        ${escapeHtml(name)}
+      </label>
+    `).join('');
+  }
 
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -879,11 +1160,13 @@
     document.getElementById('f-cover').value = b.cover || '';
     rating = b.rating || 0;
     renderStarsInput();
+    renderShelfChecks(Array.isArray(b.shelves) ? b.shelves : []);
     document.getElementById('rating-row').style.display = b.status==='finished' ? 'flex' : 'none';
     document.getElementById('saveForm').textContent = 'Save changes';
     form.classList.add('open');
     document.getElementById('openForm').style.display='none';
     recapPanel.classList.remove('open');
+    libraryPanel.classList.remove('open');
     form.scrollIntoView({behavior:'smooth', block:'start'});
   }
 
@@ -897,6 +1180,7 @@
     document.getElementById('f-status').value='want';
     document.getElementById('f-cover').value='';
     rating = 0; renderStarsInput();
+    renderShelfChecks([]);
     document.getElementById('rating-row').style.display='none';
     suggestList.classList.remove('open');
     editingId = null;
@@ -1002,6 +1286,7 @@
     const title = document.getElementById('f-title').value.trim();
     if(!title) return;
     const status = document.getElementById('f-status').value;
+    const selectedShelves = Array.from(shelfChecksEl.querySelectorAll('input[type=checkbox]:checked')).map(c => c.value);
 
     if(editingId){
       const b = books.find(x=>x.id===editingId);
@@ -1014,6 +1299,7 @@
         b.notes = document.getElementById('f-notes').value.trim();
         b.rating = status==='finished' ? rating : 0;
         b.cover = document.getElementById('f-cover').value;
+        b.shelves = selectedShelves;
         if(status==='finished' && !wasFinished) b.finishedDate = Date.now();
         if(status!=='finished') b.finishedDate = null;
       }
@@ -1032,6 +1318,7 @@
       notes: document.getElementById('f-notes').value.trim(),
       rating: status==='finished' ? rating : 0,
       cover: document.getElementById('f-cover').value,
+      shelves: selectedShelves,
       dateAdded: Date.now(),
       finishedDate: status==='finished' ? Date.now() : null
     };
@@ -1056,6 +1343,48 @@
   let pendingUploadTitle = null;
   let pendingUploadBookId = null;
   let columnMode = 'none'; // 'none' = 1 column, 'auto' = epub.js decides (usually 2 on wide screens)
+
+  // --- Font size & margin (persisted) ---
+  function loadReaderPrefs(){
+    try{
+      const saved = JSON.parse(localStorage.getItem('bibliothecary-reader-prefs'));
+      return Object.assign({ fontPct: 100, marginPx: 24, pageTheme: 'white' }, saved || {});
+    }catch(e){ return { fontPct: 100, marginPx: 24, pageTheme: 'white' }; }
+  }
+  function saveReaderPrefs(){
+    try{ localStorage.setItem('bibliothecary-reader-prefs', JSON.stringify(readerPrefs)); }catch(e){}
+  }
+  let readerPrefs = loadReaderPrefs();
+
+  const readerBodyEl = document.querySelector('.reader-body');
+  const pageThemeToggle = document.getElementById('pageThemeToggle');
+
+  function applyPageTheme(){
+    const dim = readerPrefs.pageTheme === 'dim';
+    readerBodyEl.classList.toggle('page-dim', dim);
+    pageThemeToggle.textContent = dim ? 'Dim' : 'White';
+  }
+
+  function applyReaderPrefs(){
+    if(!currentRendition) return;
+    try{
+      currentRendition.themes.register('white', {
+        'body': { 'background': '#ffffff !important', 'color': '#1a1a1a !important' }
+      });
+      currentRendition.themes.register('dim', {
+        'body': { 'background': '#3a3a3a !important', 'color': '#d4d4d4 !important' }
+      });
+      currentRendition.themes.select(readerPrefs.pageTheme);
+      currentRendition.themes.fontSize(readerPrefs.fontPct + '%');
+      currentRendition.themes.default({
+        'body': {
+          'padding-left': readerPrefs.marginPx + 'px !important',
+          'padding-right': readerPrefs.marginPx + 'px !important'
+        }
+      });
+    }catch(e){}
+    applyPageTheme();
+  }
 
   // --- Local file storage for uploaded epubs (IndexedDB, so it survives reload) ---
   const EPUB_DB_NAME = 'bibliothecary-epubs';
@@ -1124,6 +1453,8 @@
   const plecoBar = document.getElementById('plecoBar');
   const plecoWord = document.getElementById('plecoWord');
   const plecoLink = document.getElementById('plecoLink');
+  const addToNotesBtn = document.getElementById('addToNotesBtn');
+  let currentSelectedText = '';
 
   function closeReader(){
     readerOverlay.classList.remove('open');
@@ -1134,8 +1465,20 @@
     currentBookId = null;
     readerViewer.innerHTML = '';
     plecoBar.classList.remove('show');
+    renderAll();
   }
   document.getElementById('readerClose').onclick = closeReader;
+
+  addToNotesBtn.onclick = async () => {
+    if(!currentSelectedText || !currentBookId) return;
+    const b = books.find(x => x.id === currentBookId);
+    if(!b) return;
+    const line = currentSelectedText;
+    b.notes = b.notes ? (b.notes + '\n' + line) : line;
+    await save();
+    addToNotesBtn.textContent = 'Added ✓';
+    addToNotesBtn.classList.add('added');
+  };
 
   readerColumnsBtn.onclick = () => {
     columnMode = columnMode === 'none' ? 'auto' : 'none';
@@ -1145,6 +1488,33 @@
     }
   };
 
+  document.getElementById('fontDec').onclick = () => {
+    readerPrefs.fontPct = Math.max(70, readerPrefs.fontPct - 10);
+    saveReaderPrefs();
+    applyReaderPrefs();
+  };
+  document.getElementById('fontInc').onclick = () => {
+    readerPrefs.fontPct = Math.min(200, readerPrefs.fontPct + 10);
+    saveReaderPrefs();
+    applyReaderPrefs();
+  };
+  document.getElementById('marginDec').onclick = () => {
+    readerPrefs.marginPx = Math.max(0, readerPrefs.marginPx - 8);
+    saveReaderPrefs();
+    applyReaderPrefs();
+  };
+  document.getElementById('marginInc').onclick = () => {
+    readerPrefs.marginPx = Math.min(80, readerPrefs.marginPx + 8);
+    saveReaderPrefs();
+    applyReaderPrefs();
+  };
+  pageThemeToggle.onclick = () => {
+    readerPrefs.pageTheme = readerPrefs.pageTheme === 'dim' ? 'white' : 'dim';
+    saveReaderPrefs();
+    applyReaderPrefs();
+  };
+  applyPageTheme();
+
   function renderBook(epubBook, title, bookId){
     openReaderShell(title);
     plecoBar.classList.remove('show');
@@ -1152,9 +1522,10 @@
     try{
       const rendition = epubBook.renderTo(readerViewer, { width: '100%', height: '100%', spread: columnMode });
       currentRendition = rendition;
+      applyReaderPrefs();
       const savedLoc = bookId ? getProgress(bookId) : null;
       rendition.display(savedLoc || undefined);
-      rendition.on('rendered', hideReaderStatus);
+      rendition.on('rendered', () => { hideReaderStatus(); applyReaderPrefs(); });
       rendition.on('relocated', (location) => {
         if(bookId && location && location.start && location.start.cfi){
           saveProgressLoc(bookId, location.start.cfi);
@@ -1165,8 +1536,11 @@
           const sel = contents.window.getSelection();
           const text = sel ? sel.toString().trim() : '';
           if(!text) return;
+          currentSelectedText = text;
           plecoWord.textContent = text;
           plecoLink.href = 'plecoapi://x-callback-url/df?hw=' + encodeURIComponent(text);
+          addToNotesBtn.textContent = '+ Notes';
+          addToNotesBtn.classList.remove('added');
           plecoBar.classList.add('show');
         }catch(e){}
       });
@@ -1175,17 +1549,29 @@
     }
   }
 
+  async function fetchArrayBufferWithFallback(url){
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('bad status');
+      return await res.arrayBuffer();
+    }catch(e){
+      // Direct fetch blocked (likely CORS) — retry through a free public CORS proxy
+      const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+      const res2 = await fetch(proxied);
+      if(!res2.ok) throw new Error('proxy also failed');
+      return await res2.arrayBuffer();
+    }
+  }
+
   async function openReaderFromUrl(url, title, bookId){
     openReaderShell(title);
     showReaderStatus('Loading book…');
     try{
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('fetch failed');
-      const arrayBuffer = await res.arrayBuffer();
+      const arrayBuffer = await fetchArrayBufferWithFallback(url);
       const epubBook = ePub(arrayBuffer);
       renderBook(epubBook, title, bookId);
     }catch(e){
-      showReaderStatus("Couldn't load this book directly (the source may block cross-site access). Try the plain link instead if one is shown on the card.");
+      showReaderStatus("Couldn't load this book right now. You can try again, or use your own downloaded copy with the upload option instead.");
     }
   }
 
