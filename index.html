@@ -753,6 +753,8 @@
   #readerViewer{
     position:absolute;
     inset:0;
+    box-sizing:border-box;
+    transition: padding .15s ease;
   }
   .tap-zone{
     position:absolute;
@@ -1847,13 +1849,14 @@
       currentRendition.themes.select(readerPrefs.pageTheme);
       currentRendition.themes.fontSize(readerPrefs.fontPct + '%');
       currentRendition.themes.font(FONT_STACKS[readerPrefs.fontFamily] || FONT_STACKS.serif);
-      currentRendition.themes.default({
-        'body': {
-          'padding-left': readerPrefs.marginPx + 'px !important',
-          'padding-right': readerPrefs.marginPx + 'px !important'
-        }
-      });
     }catch(e){}
+    // Margin is applied to the outer viewer, not the epub's own <body> —
+    // epub.js recalculates its internal column padding on every page render
+    // and silently overwrites anything set through themes.default(), so the
+    // +/- buttons would otherwise appear to do nothing.
+    readerViewer.style.paddingLeft = readerPrefs.marginPx + 'px';
+    readerViewer.style.paddingRight = readerPrefs.marginPx + 'px';
+    try{ currentRendition.resize(); }catch(e){}
     applyPageTheme();
   }
 
