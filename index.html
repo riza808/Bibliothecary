@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bibliothecary</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#c2185b">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bibliothecary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -387,6 +394,21 @@
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
     gap:14px;
+  }
+  .pager{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    margin-top:24px;
+  }
+  .pager .chip-btn:disabled{
+    opacity:0.4;
+    cursor:default;
+  }
+  .pager-label{
+    color:var(--text-muted);
+    font-size:0.9em;
   }
   .card{
     background:var(--paper);
@@ -1005,6 +1027,8 @@
   let books = [];
   let filter = 'all';
   let shelfFilter = 'all';
+  const BOOKS_PER_PAGE = 12;
+  let currentPage = 1;
   let shelves = [];
   let rating = 0;
   let loaded = false;
@@ -1053,7 +1077,7 @@
       const btn = document.createElement('button');
       btn.className = 'tab' + (filter===s.key ? ' active' : '');
       btn.textContent = s.label;
-      btn.onclick = () => { filter = s.key; renderAll(); };
+      btn.onclick = () => { filter = s.key; currentPage = 1; renderAll(); };
       tabsEl.appendChild(btn);
     });
   }
@@ -1064,13 +1088,13 @@
     const allBtn = document.createElement('button');
     allBtn.className = 'tab' + (shelfFilter==='all' ? ' active' : '');
     allBtn.textContent = 'All shelves';
-    allBtn.onclick = () => { shelfFilter = 'all'; renderAll(); };
+    allBtn.onclick = () => { shelfFilter = 'all'; currentPage = 1; renderAll(); };
     shelfTabsEl.appendChild(allBtn);
     shelves.forEach(name => {
       const btn = document.createElement('button');
       btn.className = 'tab' + (shelfFilter===name ? ' active' : '');
       btn.textContent = name;
-      btn.onclick = () => { shelfFilter = name; renderAll(); };
+      btn.onclick = () => { shelfFilter = name; currentPage = 1; renderAll(); };
       shelfTabsEl.appendChild(btn);
     });
   }
@@ -1096,9 +1120,14 @@
       gridWrap.innerHTML = `<div class="empty"><b>Nothing here yet</b>Add a book to start your shelf.</div>`;
       return;
     }
+    const fullList = list.slice().reverse();
+    const maxPage = Math.max(1, Math.ceil(fullList.length / BOOKS_PER_PAGE));
+    if(currentPage > maxPage) currentPage = maxPage;
+    const pageStart = (currentPage - 1) * BOOKS_PER_PAGE;
+    const pageList = fullList.slice(pageStart, pageStart + BOOKS_PER_PAGE);
     const grid = document.createElement('div');
     grid.className = 'grid';
-    list.slice().reverse().forEach(b => {
+    pageList.forEach(b => {
       const card = document.createElement('div');
       card.className = 'card status-' + b.status;
       let starsHtml = '';
@@ -1168,6 +1197,27 @@
     });
     gridWrap.innerHTML = '';
     gridWrap.appendChild(grid);
+    if(maxPage > 1){
+      const pager = document.createElement('div');
+      pager.className = 'pager';
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'chip-btn';
+      prevBtn.textContent = '← Previous';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.onclick = () => { currentPage--; renderGrid(); };
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'chip-btn';
+      nextBtn.textContent = 'Next →';
+      nextBtn.disabled = currentPage === maxPage;
+      nextBtn.onclick = () => { currentPage++; renderGrid(); };
+      const label = document.createElement('span');
+      label.className = 'pager-label';
+      label.textContent = `Page ${currentPage} of ${maxPage}`;
+      pager.appendChild(prevBtn);
+      pager.appendChild(label);
+      pager.appendChild(nextBtn);
+      gridWrap.appendChild(pager);
+    }
   }
 
   function escapeHtml(str){
@@ -2187,6 +2237,15 @@
   load();
   maybeShowReminder();
 })();
+</script>
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(err => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
 </script>
 </body>
 </html>
