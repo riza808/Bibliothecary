@@ -1182,6 +1182,21 @@
         rb.className='read-btn'; rb.textContent='Read now (public domain)';
         rb.onclick=()=>openReaderFromUrl(b.epubUrl, b.title, b.id);
         readActions.appendChild(rb);
+      } else {
+        const checkBtn = document.createElement('button');
+        checkBtn.className = 'read-btn';
+        checkBtn.textContent = 'Check public domain';
+        checkBtn.onclick = async () => {
+          checkBtn.disabled = true;
+          checkBtn.textContent = 'Checking…';
+          await checkGutenberg(b);
+          const updated = books.find(x => x.id === b.id);
+          if(!updated || !updated.epubUrl){
+            checkBtn.textContent = 'Not found — try again';
+            checkBtn.disabled = false;
+          }
+        };
+        readActions.appendChild(checkBtn);
       }
       const upBtn = document.createElement('button');
       upBtn.className='read-btn'; upBtn.textContent='Read (.epub)';
