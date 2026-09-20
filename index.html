@@ -1182,20 +1182,17 @@
         rb.className='read-btn'; rb.textContent='Read now (public domain)';
         rb.onclick=()=>openReaderFromUrl(b.epubUrl, b.title, b.id);
         readActions.appendChild(rb);
+      } else if(gutenbergChecking.has(b.id)){
+        const checkingBtn = document.createElement('button');
+        checkingBtn.className = 'read-btn';
+        checkingBtn.textContent = 'Checking public domain…';
+        checkingBtn.disabled = true;
+        readActions.appendChild(checkingBtn);
       } else {
         const checkBtn = document.createElement('button');
         checkBtn.className = 'read-btn';
         checkBtn.textContent = 'Check public domain';
-        checkBtn.onclick = async () => {
-          checkBtn.disabled = true;
-          checkBtn.textContent = 'Checking…';
-          await checkGutenberg(b);
-          const updated = books.find(x => x.id === b.id);
-          if(!updated || !updated.epubUrl){
-            checkBtn.textContent = 'Not found — try again';
-            checkBtn.disabled = false;
-          }
-        };
+        checkBtn.onclick = () => checkGutenberg(b);
         readActions.appendChild(checkBtn);
       }
       const upBtn = document.createElement('button');
@@ -1751,7 +1748,10 @@
   };
 
   // --- Free public-domain check (Project Gutenberg via Gutendex) ---
+  const gutenbergChecking = new Set();
   async function checkGutenberg(book){
+    gutenbergChecking.add(book.id);
+    renderAll();
     try{
       const res = await fetch('https://gutendex.com/books/?search=' + encodeURIComponent(book.title));
       const data = await res.json();
@@ -1771,10 +1771,12 @@
         if(readUrl) b.readUrl = readUrl;
         if(epubUrl) b.epubUrl = epubUrl;
         await save();
-        renderAll();
       }
     }catch(e){
       // silently skip — this is a bonus feature, not core
+    }finally{
+      gutenbergChecking.delete(book.id);
+      renderAll();
     }
   }
 
