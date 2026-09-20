@@ -767,6 +767,24 @@
   }
   .tap-left{left:0;}
   .tap-right{right:0;}
+  .reader-corner-tap{
+    position:absolute;
+    top:0;
+    left:0;
+    width:56px;
+    height:56px;
+    z-index:6;
+    background:transparent;
+    cursor:pointer;
+  }
+  .reader-overlay.ui-hidden .reader-bar,
+  .reader-overlay.ui-hidden .reader-settings,
+  .reader-overlay.ui-hidden .reader-nav{
+    display:none;
+  }
+  .reader-overlay.ui-hidden .pleco-bar.show{
+    display:none;
+  }
   .reader-nav{
     display:flex;
     justify-content:space-between;
@@ -1006,13 +1024,14 @@
     <div id="readerViewer"></div>
     <div class="tap-zone tap-left" id="tapLeft"></div>
     <div class="tap-zone tap-right" id="tapRight"></div>
+    <div class="reader-corner-tap" id="readerCornerTap" title="Show/hide reader controls" aria-label="Show or hide reader controls"></div>
     <div class="reader-status" id="readerStatus" style="display:none;"></div>
   </div>
   <div class="pleco-bar" id="plecoBar">
     <div class="pleco-word" id="plecoWord"></div>
     <div class="pleco-actions">
       <button class="pleco-note-btn" id="addToNotesBtn">+ Notes</button>
-      <a class="pleco-link" id="plecoLink" href="#">Look up in Pleco</a>
+      <a class="pleco-link" id="plecoLink" href="#">Look up in Hanping</a>
     </div>
   </div>
   <div class="reader-nav">
@@ -1799,7 +1818,22 @@
   const epubFileInput = document.getElementById('epubFileInput');
   const tapLeft = document.getElementById('tapLeft');
   const tapRight = document.getElementById('tapRight');
+  const readerCornerTap = document.getElementById('readerCornerTap');
   const readerColumnsBtn = document.getElementById('readerColumns');
+  let readerUiHideTimer = null;
+  function showReaderUi(){
+    readerOverlay.classList.remove('ui-hidden');
+    clearTimeout(readerUiHideTimer);
+    readerUiHideTimer = setTimeout(() => readerOverlay.classList.add('ui-hidden'), 3000);
+  }
+  function toggleReaderUi(){
+    if(readerOverlay.classList.contains('ui-hidden')) showReaderUi();
+    else{
+      clearTimeout(readerUiHideTimer);
+      readerOverlay.classList.add('ui-hidden');
+    }
+  }
+  readerCornerTap.onclick = toggleReaderUi;
   let currentRendition = null;
   let currentBookId = null;
   let pendingUploadTitle = null;
@@ -1922,6 +1956,7 @@
     readerViewer.innerHTML = '';
     hideReaderStatus();
     readerOverlay.classList.add('open');
+    showReaderUi();
     if (readerOverlay.requestFullscreen) {
       readerOverlay.requestFullscreen().catch(() => {});
     }
@@ -1964,6 +1999,8 @@
 
   function closeReader(){
     readerOverlay.classList.remove('open');
+    readerOverlay.classList.remove('ui-hidden');
+    clearTimeout(readerUiHideTimer);
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
     }
@@ -2055,7 +2092,7 @@
           if(!text) return;
           currentSelectedText = text;
           plecoWord.textContent = text;
-          plecoLink.href = 'plecoapi://x-callback-url/df?hw=' + encodeURIComponent(text);
+          plecoLink.href = 'hanping://search?text=' + encodeURIComponent(text);
           addToNotesBtn.textContent = '+ Notes';
           addToNotesBtn.classList.remove('added');
           plecoBar.classList.add('show');
