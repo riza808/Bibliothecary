@@ -1957,6 +1957,7 @@
     hideReaderStatus();
     readerOverlay.classList.add('open');
     showReaderUi();
+    history.pushState({ readerOpen: true }, '', location.href);
     if (readerOverlay.requestFullscreen) {
       readerOverlay.requestFullscreen().catch(() => {});
     }
@@ -1997,7 +1998,12 @@
     if(notesPanel.classList.contains('show')) renderNotesPanel();
   };
 
+  let closingViaPopstate = false;
   function closeReader(){
+    if(!closingViaPopstate && history.state && history.state.readerOpen){
+      history.back();
+    }
+    closingViaPopstate = false;
     readerOverlay.classList.remove('open');
     readerOverlay.classList.remove('ui-hidden');
     clearTimeout(readerUiHideTimer);
@@ -2015,6 +2021,12 @@
     renderAll();
   }
   document.getElementById('readerClose').onclick = closeReader;
+  window.addEventListener('popstate', () => {
+    if(readerOverlay.classList.contains('open')){
+      closingViaPopstate = true;
+      closeReader();
+    }
+  });
 
   addToNotesBtn.onclick = async () => {
     if(!currentSelectedText || !currentBookId) return;
