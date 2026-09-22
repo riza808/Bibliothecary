@@ -2132,6 +2132,16 @@
     }
   }
 
+  async function fetchWithTimeout(url, ms){
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try{
+      return await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function fetchArrayBufferWithFallback(url){
     // Try a direct fetch first, then chain through a few free public
     // CORS proxies as backups — these free services are occasionally down,
@@ -2143,7 +2153,7 @@
     let lastErr = null;
     for(const attemptUrl of attempts){
       try{
-        const res = await fetch(attemptUrl);
+        const res = await fetchWithTimeout(attemptUrl, 15000);
         if(!res.ok) throw new Error('bad status ' + res.status);
         const buf = await res.arrayBuffer();
         if(buf.byteLength < 100) throw new Error('response too small, likely an error page');
