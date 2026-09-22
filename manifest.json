@@ -1,25 +1,16 @@
 {
-  "name": "Bibliothecary",
-  "short_name": "Bibliothecary",
-  "description": "A reading tracker and personal library shelf.",
+  "name": "Hanzi Practice",
+  "short_name": "Hanzi",
+  "description": "Practice writing Chinese characters with stroke-order guidance",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fdf6f0",
-  "theme_color": "#c2185b",
+  "background_color": "#EFE7D5",
+  "theme_color": "#A23E2E",
   "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
